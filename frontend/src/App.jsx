@@ -14,6 +14,8 @@ import HomePage from './pages/user/HomePage';
 import VenuesPage from './pages/user/VenuesPage';
 import VenueDetailPage from './pages/user/VenueDetailPage';
 import BookingPage from './pages/user/BookingPage';
+import BookingConfirmationPage from './pages/user/BookingConfirmationPage';
+import PaymentPage from './pages/user/PaymentPage';
 import ProfilePage from './pages/user/ProfilePage';
 import MyBookingsPage from './pages/user/MyBookingsPage';
 
@@ -153,6 +155,24 @@ function AppRoutes() {
             element={
               <ProtectedRoute allowedRoles={['USER']}>
                 <MyBookingsPage />
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* Additional User Routes */}
+          <Route 
+            path="/booking-confirmation/:facilityId" 
+            element={
+              <ProtectedRoute allowedRoles={['USER']}>
+                <BookingConfirmationPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/payment/:bookingId" 
+            element={
+              <ProtectedRoute allowedRoles={['USER']}>
+                <PaymentPage />
               </ProtectedRoute>
             } 
           />
