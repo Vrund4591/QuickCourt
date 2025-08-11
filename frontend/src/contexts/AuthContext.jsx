@@ -1,145 +1,136 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import axios from 'axios';
+import { createContext, useContext, useState, useEffect } from 'react'
+import api from '../utils/api'
+import toast from 'react-hot-toast'
 
-const AuthContext = createContext();
+const AuthContext = createContext()
 
 export const useAuth = () => {
-  const context = useContext(AuthContext);
+  const context = useContext(AuthContext)
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error('useAuth must be used within an AuthProvider')
   }
-  return context;
-};
-
-// Configure axios defaults
-axios.defaults.baseURL = 'http://localhost:5001/api';
+  return context
+}
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(null)
+  const [loading, setLoading] = useState(true)
 
-  // Set up axios interceptor for token
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('token')
     if (token) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`
+      fetchUserProfile()
+    } else {
+      setLoading(false)
     }
+  }, [])
 
-    // Check if user is logged in on app start
-    checkAuth();
-  }, []);
-
-  const checkAuth = async () => {
+  const fetchUserProfile = async () => {
     try {
-      const token = localStorage.getItem('token');
-      if (token) {
-        const response = await axios.get('/users/profile');
-        if (response.data.success) {
-          setUser(response.data.user);
-        } else {
-          logout();
-        }
+      const response = await api.get('/users/profile')
+      if (response.data.success) {
+        setUser(response.data.user)
       }
     } catch (error) {
-      logout();
+      console.error('Fetch profile error:', error)
+      localStorage.removeItem('token')
+      delete api.defaults.headers.common['Authorization']
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const login = async (email, password) => {
     try {
-      const response = await axios.post('/auth/login', { email, password });
+      const response = await api.post('/auth/login', { email, password })
+      
       if (response.data.success) {
-        const { token, user } = response.data;
-        localStorage.setItem('token', token);
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-        setUser(user);
-        return { success: true };
+        const { token, user } = response.data
+        localStorage.setItem('token', token)
+        api.defaults.headers.common['Authorization'] = `Bearer ${token}`
+        setUser(user)
+        toast.success('Login successful!')
+        return { success: true }
       }
-      return { success: false, message: response.data.message };
     } catch (error) {
-      return { 
-        success: false, 
-        message: error.response?.data?.message || 'Login failed' 
-      };
+      const message = error.response?.data?.message || 'Login failed'
+      toast.error(message)
+      return { success: false, message }
     }
-  };
+  }
 
-  const register = async (userData) => {
+  const signup = async (userData) => {
     try {
-      const response = await axios.post('/auth/register', userData);
-      return { 
-        success: response.data.success,
-        message: response.data.message,
-        userId: response.data.userId
-      };
-    } catch (error) {
-      return { 
-        success: false, 
-        message: error.response?.data?.message || 'Registration failed' 
-      };
-    }
-  };
-
-  const verifyOTP = async (userId, otp) => {
-    try {
-      const response = await axios.post('/auth/verify-otp', { userId, otp });
+      const response = await api.post('/auth/signup', userData)
+      
       if (response.data.success) {
-        const { token, user } = response.data;
-        localStorage.setItem('token', token);
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-        setUser(user);
-        return { success: true };
+        toast.success('Registration successful! Please verify your email.')
+        return { success: true, user: response.data.user }
       }
-      return { success: false, message: response.data.message };
     } catch (error) {
-      return { 
-        success: false, 
-        message: error.response?.data?.message || 'OTP verification failed' 
-      };
+      const message = error.response?.data?.message || 'Registration failed'
+      toast.error(message)
+      return { success: false, message }
     }
-  };
+  }
 
-  const resendOTP = async (userId) => {
+  const verifyOTP = async (email, otp) => {
     try {
-      const response = await axios.post('/auth/resend-otp', { userId });
-      return { 
-        success: response.data.success,
-        message: response.data.message
-      };
+      const response = await api.post('/auth/verify-otp', { email, otp })
+      
+      if (response.data.success) {
+        const { token, user } = response.data
+        localStorage.setItem('token', token)
+        api.defaults.headers.common['Authorization'] = `Bearer ${token}`
+        setUser(user)
+        toast.success('Email verified successfully!')
+        return { success: true }
+      }
     } catch (error) {
-      return { 
-        success: false, 
-        message: error.response?.data?.message || 'Failed to resend OTP' 
-      };
+      const message = error.response?.data?.message || 'OTP verification failed'
+      toast.error(message)
+      return { success: false, message }
     }
-  };
+  }
 
   const logout = () => {
-    localStorage.removeItem('token');
-    delete axios.defaults.headers.common['Authorization'];
-    setUser(null);
-  };
+    localStorage.removeItem('token')
+    delete api.defaults.headers.common['Authorization']
+    setUser(null)
+    toast.success('Logged out successfully!')
+  }
 
-  const updateUser = (userData) => {
-    setUser(prev => ({ ...prev, ...userData }));
-  };
+  const updateProfile = async (profileData) => {
+    try {
+      const response = await api.put('/users/profile', profileData)
+      
+      if (response.data.success) {
+        setUser(response.data.user)
+        toast.success('Profile updated successfully!')
+        return { success: true }
+      }
+    } catch (error) {
+      const message = error.response?.data?.message || 'Profile update failed'
+      toast.error(message)
+      return { success: false, message }
+    }
+  }
 
   const value = {
     user,
     loading,
     login,
-    register,
+    signup,
     verifyOTP,
-    resendOTP,
     logout,
-    updateUser
-  };
+    updateProfile,
+    refreshUser: fetchUserProfile
+  }
 
   return (
     <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
-  );
-};
+  )
+}

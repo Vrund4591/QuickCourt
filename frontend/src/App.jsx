@@ -1,260 +1,165 @@
-import { useState } from 'react'
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { Toaster } from 'react-hot-toast';
-import { AuthProvider } from './contexts/AuthContext';
-import { useAuth } from './contexts/AuthContext';
+import { Routes, Route, Navigate } from 'react-router-dom'
+import { useAuth } from './contexts/AuthContext'
+import Navbar from './components/common/Navbar'
+import Footer from './components/common/Footer'
+import LoadingSpinner from './components/common/LoadingSpinner'
 
-// Auth Components
-import Login from './pages/auth/Login';
-import Register from './pages/auth/Register';
-import VerifyOTP from './pages/auth/VerifyOTP';
+// Auth Pages
+import Login from './pages/auth/Login'
+import Signup from './pages/auth/Signup'
+import OTPVerification from './pages/auth/OTPVerification'
 
-// User Components
-import HomePage from './pages/user/HomePage';
-import VenuesPage from './pages/user/VenuesPage';
-import VenueDetailPage from './pages/user/VenueDetailPage';
-import BookingPage from './pages/user/BookingPage';
-import BookingConfirmationPage from './pages/user/BookingConfirmationPage';
-import PaymentPage from './pages/user/PaymentPage';
-import ProfilePage from './pages/user/ProfilePage';
-import MyBookingsPage from './pages/user/MyBookingsPage';
+// User Pages
+import Home from './pages/user/Home'
+import Venues from './pages/user/Venues'
+import VenueDetail from './pages/user/VenueDetail'
+import BookingConfirmation from './pages/user/BookingConfirmation'
+import Payment from './pages/user/Payment'
+import MyBookings from './pages/user/MyBookings'
+import UserProfile from './pages/user/Profile'
 
-// Facility Owner Components
-import OwnerDashboard from './pages/owner/OwnerDashboard';
-import FacilityManagement from './pages/owner/FacilityManagement';
-import CourtManagement from './pages/owner/CourtManagement';
-import BookingOverview from './pages/owner/BookingOverview';
+// Facility Owner Pages
+import OwnerDashboard from './pages/owner/Dashboard'
+import FacilityManagement from './pages/owner/FacilityManagement'
+import CourtManagement from './pages/owner/CourtManagement'
+import OwnerBookings from './pages/owner/Bookings'
+import OwnerProfile from './pages/owner/Profile'
 
-// Admin Components
-import AdminDashboard from './pages/admin/AdminDashboard';
-import FacilityApproval from './pages/admin/FacilityApproval';
-import UserManagement from './pages/admin/UserManagement';
-
-// Layout Components
-import Navbar from './components/layout/Navbar';
-import Footer from './components/layout/Footer';
+// Admin Pages
+import AdminDashboard from './pages/admin/Dashboard'
+import FacilityApproval from './pages/admin/FacilityApproval'
+import UserManagement from './pages/admin/UserManagement'
+import AdminProfile from './pages/admin/Profile'
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
-  const { user, loading } = useAuth();
+  const { user, loading } = useAuth()
   
-  if (loading) {
-    return <div className="flex justify-center items-center h-screen">Loading...</div>;
-  }
+  if (loading) return <LoadingSpinner />
   
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
+  if (!user) return <Navigate to="/login" replace />
   
   if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/" replace />
   }
   
-  return children;
-};
+  return children
+}
 
-// Public Route Component (redirect if authenticated)
-const PublicRoute = ({ children }) => {
-  const { user, loading } = useAuth();
-  
+function App() {
+  const { user, loading } = useAuth()
+
   if (loading) {
-    return <div className="flex justify-center items-center h-screen">Loading...</div>;
+    return <LoadingSpinner />
   }
-  
-  if (user) {
-    // Redirect based on user role
-    if (user.role === 'ADMIN') {
-      return <Navigate to="/admin/dashboard" replace />;
-    } else if (user.role === 'FACILITY_OWNER') {
-      return <Navigate to="/owner/dashboard" replace />;
-    } else {
-      return <Navigate to="/" replace />;
-    }
-  }
-  
-  return children;
-};
 
-function AppRoutes() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <main className="min-h-screen">
+      <main className="min-h-[calc(100vh-140px)]">
         <Routes>
           {/* Public Routes */}
-          <Route 
-            path="/login" 
-            element={
-              <PublicRoute>
-                <Login />
-              </PublicRoute>
-            } 
-          />
-          <Route 
-            path="/register" 
-            element={
-              <PublicRoute>
-                <Register />
-              </PublicRoute>
-            } 
-          />
-          <Route 
-            path="/verify-otp" 
-            element={
-              <PublicRoute>
-                <VerifyOTP />
-              </PublicRoute>
-            } 
-          />
-
-          {/* Home Route - accessible to all authenticated users */}
-          <Route 
-            path="/" 
-            element={
-              <ProtectedRoute>
-                <HomePage />
-              </ProtectedRoute>
-            } 
-          />
-
+          <Route path="/login" element={!user ? <Login /> : <Navigate to="/" replace />} />
+          <Route path="/signup" element={!user ? <Signup /> : <Navigate to="/" replace />} />
+          <Route path="/verify-otp" element={!user ? <OTPVerification /> : <Navigate to="/" replace />} />
+          
+          {/* Protected Routes */}
+          <Route path="/" element={
+            <ProtectedRoute>
+              {user?.role === 'ADMIN' ? <AdminDashboard /> : 
+               user?.role === 'FACILITY_OWNER' ? <OwnerDashboard /> : 
+               <Home />}
+            </ProtectedRoute>
+          } />
+          
           {/* User Routes */}
-          <Route 
-            path="/venues" 
-            element={
-              <ProtectedRoute allowedRoles={['USER']}>
-                <VenuesPage />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/venues/:id" 
-            element={
-              <ProtectedRoute allowedRoles={['USER']}>
-                <VenueDetailPage />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/booking/:facilityId" 
-            element={
-              <ProtectedRoute allowedRoles={['USER']}>
-                <BookingPage />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/profile" 
-            element={
-              <ProtectedRoute>
-                <ProfilePage />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/my-bookings" 
-            element={
-              <ProtectedRoute allowedRoles={['USER']}>
-                <MyBookingsPage />
-              </ProtectedRoute>
-            } 
-          />
-
-          {/* Additional User Routes */}
-          <Route 
-            path="/booking-confirmation/:facilityId" 
-            element={
-              <ProtectedRoute allowedRoles={['USER']}>
-                <BookingConfirmationPage />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/payment/:bookingId" 
-            element={
-              <ProtectedRoute allowedRoles={['USER']}>
-                <PaymentPage />
-              </ProtectedRoute>
-            } 
-          />
-
+          <Route path="/venues" element={
+            <ProtectedRoute allowedRoles={['USER']}>
+              <Venues />
+            </ProtectedRoute>
+          } />
+          <Route path="/venues/:id" element={
+            <ProtectedRoute allowedRoles={['USER']}>
+              <VenueDetail />
+            </ProtectedRoute>
+          } />
+          <Route path="/booking/confirm" element={
+            <ProtectedRoute allowedRoles={['USER']}>
+              <BookingConfirmation />
+            </ProtectedRoute>
+          } />
+          <Route path="/payment" element={
+            <ProtectedRoute allowedRoles={['USER']}>
+              <Payment />
+            </ProtectedRoute>
+          } />
+          <Route path="/my-bookings" element={
+            <ProtectedRoute allowedRoles={['USER']}>
+              <MyBookings />
+            </ProtectedRoute>
+          } />
+          <Route path="/profile" element={
+            <ProtectedRoute allowedRoles={['USER']}>
+              <UserProfile />
+            </ProtectedRoute>
+          } />
+          
           {/* Facility Owner Routes */}
-          <Route 
-            path="/owner/dashboard" 
-            element={
-              <ProtectedRoute allowedRoles={['FACILITY_OWNER']}>
-                <OwnerDashboard />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/owner/facilities" 
-            element={
-              <ProtectedRoute allowedRoles={['FACILITY_OWNER']}>
-                <FacilityManagement />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/owner/courts" 
-            element={
-              <ProtectedRoute allowedRoles={['FACILITY_OWNER']}>
-                <CourtManagement />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/owner/bookings" 
-            element={
-              <ProtectedRoute allowedRoles={['FACILITY_OWNER']}>
-                <BookingOverview />
-              </ProtectedRoute>
-            } 
-          />
-
+          <Route path="/owner/dashboard" element={
+            <ProtectedRoute allowedRoles={['FACILITY_OWNER']}>
+              <OwnerDashboard />
+            </ProtectedRoute>
+          } />
+          <Route path="/owner/facilities" element={
+            <ProtectedRoute allowedRoles={['FACILITY_OWNER']}>
+              <FacilityManagement />
+            </ProtectedRoute>
+          } />
+          <Route path="/owner/courts" element={
+            <ProtectedRoute allowedRoles={['FACILITY_OWNER']}>
+              <CourtManagement />
+            </ProtectedRoute>
+          } />
+          <Route path="/owner/bookings" element={
+            <ProtectedRoute allowedRoles={['FACILITY_OWNER']}>
+              <OwnerBookings />
+            </ProtectedRoute>
+          } />
+          <Route path="/owner/profile" element={
+            <ProtectedRoute allowedRoles={['FACILITY_OWNER']}>
+              <OwnerProfile />
+            </ProtectedRoute>
+          } />
+          
           {/* Admin Routes */}
-          <Route 
-            path="/admin/dashboard" 
-            element={
-              <ProtectedRoute allowedRoles={['ADMIN']}>
-                <AdminDashboard />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/admin/facilities" 
-            element={
-              <ProtectedRoute allowedRoles={['ADMIN']}>
-                <FacilityApproval />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/admin/users" 
-            element={
-              <ProtectedRoute allowedRoles={['ADMIN']}>
-                <UserManagement />
-              </ProtectedRoute>
-            } 
-          />
-
+          <Route path="/admin/dashboard" element={
+            <ProtectedRoute allowedRoles={['ADMIN']}>
+              <AdminDashboard />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/facilities" element={
+            <ProtectedRoute allowedRoles={['ADMIN']}>
+              <FacilityApproval />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/users" element={
+            <ProtectedRoute allowedRoles={['ADMIN']}>
+              <UserManagement />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/profile" element={
+            <ProtectedRoute allowedRoles={['ADMIN']}>
+              <AdminProfile />
+            </ProtectedRoute>
+          } />
+          
           {/* Catch all route */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
       <Footer />
-      <Toaster position="top-right" />
     </div>
-  );
-}
-
-function App() {
-  return (
-    <Router>
-      <AuthProvider>
-        <AppRoutes />
-      </AuthProvider>
-    </Router>
-  );
+  )
 }
 
 export default App

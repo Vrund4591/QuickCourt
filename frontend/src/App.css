@@ -1,3 +1,14 @@
+/* QuickCourt App Styles */
+.app-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.main-content {
+  flex: 1;
+}
+
 #root {
   max-width: 1280px;
   margin: 0 auto;

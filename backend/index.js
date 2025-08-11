@@ -20,6 +20,10 @@ const bookingRoutes = require('./routes/bookings');
 const adminRoutes = require('./routes/admin');
 const reviewRoutes = require('./routes/reviews');
 const uploadRoutes = require('./routes/upload');
+const timeSlotsRoutes = require('./routes/timeSlots');
+const paymentRoutes = require('./routes/payment');
+const ownerRoutes = require('./routes/owner');
+const reportsRoutes = require('./routes/reports');
 
 const app = express();
 const prisma = new PrismaClient();
@@ -38,6 +42,10 @@ app.use('/api/bookings', bookingRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/time-slots', timeSlotsRoutes);
+app.use('/api/payment', paymentRoutes);
+app.use('/api/owner', ownerRoutes);
+app.use('/api/reports', reportsRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

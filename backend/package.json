@@ -1,37 +1,35 @@
 {
-  "name": "backend",
+  "name": "quickcourt-backend",
   "version": "1.0.0",
+  "description": "Backend for QuickCourt sports booking platform",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node -r dotenv/config index.js",
-    "dev": "nodemon -r dotenv/config index.js",
-    "db:generate": "prisma generate",
-    "db:push": "prisma db push",
-    "db:migrate": "prisma migrate dev",
-    "db:studio": "prisma studio",
-    "postinstall": "prisma generate"
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "prisma:generate": "prisma generate",
+    "prisma:push": "prisma db push",
+    "prisma:studio": "prisma studio",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:reset": "prisma migrate reset"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "cloudinary": "^1.41.0",
     "cors": "^2.8.5",
     "crypto": "^1.0.1",
-    "dotenv": "^17.2.1",
-    "express": "^5.1.0",
-    "express-validator": "^7.0.1",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
     "nodemailer": "^6.9.7",
     "razorpay": "^2.9.2",
-    "@prisma/client": "^6.13.0"
+    "@prisma/client": "^5.7.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.2",
-    "prisma": "^6.13.0"
+    "prisma": "^5.7.1"
+  },
+  "engines": {
+    "node": ">=16.0.0"
   }
 }

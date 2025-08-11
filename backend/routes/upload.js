@@ -26,35 +26,90 @@ const upload = multer({
   }
 });
 
-// Upload image
-router.post('/image', auth, upload.single('image'), async (req, res) => {
+// Upload single image
+router.post('/single', auth, upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: true, message: 'No image file provided' });
     }
 
+    // Convert buffer to base64
+    const base64String = req.file.buffer.toString('base64');
+    const dataURI = `data:${req.file.mimetype};base64,${base64String}`;
+
     // Upload to Cloudinary
-    const result = await new Promise((resolve, reject) => {
-      cloudinary.uploader.upload_stream(
-        { 
-          resource_type: 'image',
-          folder: 'quickcourt'
-        },
-        (error, result) => {
-          if (error) reject(error);
-          else resolve(result);
-        }
-      ).end(req.file.buffer);
+    const result = await cloudinary.uploader.upload(dataURI, {
+      folder: 'quickcourt',
+      resource_type: 'image',
+      transformation: [
+        { width: 800, height: 600, crop: 'limit' },
+        { quality: 'auto' }
+      ]
     });
 
     res.json({ 
       success: true, 
-      message: 'Image uploaded successfully',
-      imageUrl: result.secure_url 
+      imageUrl: result.secure_url,
+      publicId: result.public_id
     });
   } catch (error) {
     console.error('Upload error:', error);
     res.status(500).json({ error: true, message: 'Failed to upload image' });
+  }
+});
+
+// Upload multiple images
+router.post('/multiple', auth, upload.array('images', 10), async (req, res) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: true, message: 'No image files provided' });
+    }
+
+    const uploadPromises = req.files.map(async (file) => {
+      const base64String = file.buffer.toString('base64');
+      const dataURI = `data:${file.mimetype};base64,${base64String}`;
+
+      const result = await cloudinary.uploader.upload(dataURI, {
+        folder: 'quickcourt',
+        resource_type: 'image',
+        transformation: [
+          { width: 800, height: 600, crop: 'limit' },
+          { quality: 'auto' }
+        ]
+      });
+
+      return {
+        url: result.secure_url,
+        publicId: result.public_id
+      };
+    });
+
+    const uploadResults = await Promise.all(uploadPromises);
+
+    res.json({ 
+      success: true, 
+      images: uploadResults
+    });
+  } catch (error) {
+    console.error('Multiple upload error:', error);
+    res.status(500).json({ error: true, message: 'Failed to upload images' });
+  }
+});
+
+// Delete image
+router.delete('/:publicId', auth, async (req, res) => {
+  try {
+    const { publicId } = req.params;
+    
+    // Replace dots with slashes for nested folder structure
+    const formattedPublicId = publicId.replace(/\./g, '/');
+    
+    await cloudinary.uploader.destroy(formattedPublicId);
+    
+    res.json({ success: true, message: 'Image deleted successfully' });
+  } catch (error) {
+    console.error('Delete image error:', error);
+    res.status(500).json({ error: true, message: 'Failed to delete image' });
   }
 });
 
