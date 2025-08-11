@@ -1,191 +1,319 @@
 const express = require('express');
+const bcrypt = require('bcryptjs');
 const { PrismaClient } = require('../generated/prisma');
 const auth = require('../middleware/auth');
+const admin = require('../middleware/admin');
 
 const router = express.Router();
 const prisma = new PrismaClient();
 
-// Admin middleware
-const adminAuth = (req, res, next) => {
-  if (req.user.role !== 'ADMIN') {
-    return res.status(403).json({ error: true, message: 'Admin access required' });
-  }
-  next();
-};
-
-// Get pending facilities for approval
-router.get('/facilities/pending', auth, adminAuth, async (req, res) => {
+// Get all users (Admin only)
+router.get('/users', auth, admin, async (req, res) => {
   try {
-    const facilities = await prisma.facility.findMany({
-      where: { status: 'PENDING' },
-      include: {
-        owner: {
-          select: { fullName: true, email: true }
-        }
-      }
-    });
-
-    res.json({ success: true, facilities });
-  } catch (error) {
-    console.error('Get pending facilities error:', error);
-    res.status(500).json({ error: true, message: 'Failed to get pending facilities' });
-  }
-});
-
-// Approve/Reject facility
-router.put('/facilities/:id/status', auth, adminAuth, async (req, res) => {
-  try {
-    const { status } = req.body;
-
-    if (!['APPROVED', 'REJECTED'].includes(status)) {
-      return res.status(400).json({ error: true, message: 'Invalid status' });
-    }
-
-    const facility = await prisma.facility.update({
-      where: { id: req.params.id },
-      data: { status }
-    });
-
-    res.json({ success: true, message: `Facility ${status.toLowerCase()} successfully`, facility });
-  } catch (error) {
-    console.error('Update facility status error:', error);
-    res.status(500).json({ error: true, message: 'Failed to update facility status' });
-  }
-});
-
-// Get all users with filtering
-router.get('/users', auth, adminAuth, async (req, res) => {
-  try {
-    const { role, status, search, page = 1, limit = 20 } = req.query;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-
-    const where = {};
-    
-    if (role) where.role = role;
-    if (status) where.isActive = status === 'active';
-    if (search) {
-      where.OR = [
-        { fullName: { contains: search, mode: 'insensitive' } },
-        { email: { contains: search, mode: 'insensitive' } }
-      ];
-    }
-
     const users = await prisma.user.findMany({
-      where,
       select: {
         id: true,
         fullName: true,
         email: true,
+        phone: true,
         role: true,
         isActive: true,
-        isVerified: true,
         createdAt: true,
-        _count: {
-          select: {
-            bookings: true,
-            facilities: true
-          }
-        }
+        updatedAt: true
       },
-      skip,
-      take: parseInt(limit),
-      orderBy: { createdAt: 'desc' }
-    });
-
-    const totalCount = await prisma.user.count({ where });
-
-    res.json({ 
-      success: true, 
-      users,
-      pagination: {
-        currentPage: parseInt(page),
-        totalPages: Math.ceil(totalCount / parseInt(limit)),
-        totalCount
+      orderBy: {
+        createdAt: 'desc'
       }
     });
+    
+    res.json({ users });
   } catch (error) {
-    console.error('Get users error:', error);
-    res.status(500).json({ error: true, message: 'Failed to get users' });
+    console.error('Error fetching users:', error);
+    
+    // Handle specific database connection errors
+    if (error.code === 'P1001' || error.message.includes("Can't reach database")) {
+      return res.status(503).json({ 
+        message: 'Database temporarily unavailable. Please try again later.',
+        error: 'DATABASE_CONNECTION_ERROR'
+      });
+    }
+    
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
-// Ban/unban user
-router.put('/users/:id/status', auth, adminAuth, async (req, res) => {
+// Create new user (Admin only)
+router.post('/users', auth, admin, async (req, res) => {
   try {
-    const { isActive } = req.body;
+    const { name, email, phone, role, status, password } = req.body;
 
-    const user = await prisma.user.update({
-      where: { id: req.params.id },
-      data: { isActive: Boolean(isActive) }
+    // Check if user already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email }
+    });
+    
+    if (existingUser) {
+      return res.status(400).json({ message: 'User with this email already exists' });
+    }
+
+    // Hash password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // Create user
+    const user = await prisma.user.create({
+      data: {
+        fullName: name,
+        email,
+        phone,
+        role: role || 'USER',
+        isActive: status === 'ACTIVE' ? true : false,
+        password: hashedPassword,
+        isVerified: true
+      },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        phone: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true
+      }
     });
 
-    res.json({ 
-      success: true, 
-      message: `User ${isActive ? 'activated' : 'deactivated'} successfully`, 
+    res.status(201).json({ 
+      message: 'User created successfully',
       user 
     });
   } catch (error) {
-    console.error('Update user status error:', error);
-    res.status(500).json({ error: true, message: 'Failed to update user status' });
+    console.error('Error creating user:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
-// Get dashboard analytics
-router.get('/analytics', auth, adminAuth, async (req, res) => {
+// Update user (Admin only)
+router.put('/users/:id', auth, admin, async (req, res) => {
   try {
-    // Get basic counts
-    const [totalUsers, totalFacilities, totalBookings, totalCourts] = await Promise.all([
-      prisma.user.count(),
-      prisma.facility.count({ where: { status: 'APPROVED' } }),
-      prisma.booking.count(),
-      prisma.court.count({ where: { isActive: true } })
-    ]);
-
-    // Get recent registrations (last 30 days)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    const recentRegistrations = await prisma.user.groupBy({
-      by: ['createdAt'],
+    const { name, email, phone, role, status } = req.body;
+    const userId = req.params.id;
+    
+    // Check if email is already taken by another user
+    const existingUser = await prisma.user.findFirst({
       where: {
-        createdAt: { gte: thirtyDaysAgo }
+        email,
+        NOT: {
+          id: userId
+        }
+      }
+    });
+    
+    if (existingUser) {
+      return res.status(400).json({ message: 'Email already taken' });
+    }
+
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        fullName: name,
+        email,
+        phone,
+        role,
+        isActive: status === 'ACTIVE' ? true : false
       },
-      _count: true
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        phone: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true
+      }
     });
 
-    // Get booking trends (last 30 days)
-    const bookingTrends = await prisma.booking.groupBy({
-      by: ['createdAt'],
-      where: {
-        createdAt: { gte: thirtyDaysAgo }
-      },
-      _count: true,
-      _sum: { totalAmount: true }
+    res.json({ 
+      message: 'User updated successfully',
+      user 
+    });
+  } catch (error) {
+    console.error('Error updating user:', error);
+    if (error.code === 'P2025') {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Delete user (Admin only)
+router.delete('/users/:id', auth, admin, async (req, res) => {
+  try {
+    const userId = req.params.id;
+    
+    await prisma.user.delete({
+      where: { id: userId }
     });
 
-    // Get popular sports
-    const popularSports = await prisma.court.groupBy({
-      by: ['sportType'],
-      _count: true,
-      orderBy: { _count: { sportType: 'desc' } },
-      take: 5
+    res.json({ message: 'User deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    if (error.code === 'P2025') {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Update user status (Admin only)
+router.patch('/users/:id/status', auth, admin, async (req, res) => {
+  try {
+    const { status } = req.body;
+    const userId = req.params.id;
+    
+    if (!['ACTIVE', 'INACTIVE'].includes(status)) {
+      return res.status(400).json({ message: 'Invalid status' });
+    }
+
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { isActive: status === 'ACTIVE' ? true : false },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        phone: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true
+      }
+    });
+
+    res.json({ 
+      message: `User ${status.toLowerCase()} successfully`,
+      user 
+    });
+  } catch (error) {
+    console.error('Error updating user status:', error);
+    if (error.code === 'P2025') {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get user by ID (Admin only)
+router.get('/users/:id', auth, admin, async (req, res) => {
+  try {
+    const userId = req.params.id;
+    
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        phone: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true
+      }
+    });
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({ user });
+  } catch (error) {
+    console.error('Error fetching user:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get dashboard stats (Admin only)
+router.get('/stats', auth, admin, async (req, res) => {
+  try {
+    const totalUsers = await prisma.user.count();
+    const activeUsers = await prisma.user.count({
+      where: { isActive: true }
+    });
+    const adminCount = await prisma.user.count({
+      where: { role: 'ADMIN' }
+    });
+    const ownerCount = await prisma.user.count({
+      where: { role: 'OWNER' }
+    });
+    const userCount = await prisma.user.count({
+      where: { role: 'USER' }
+    });
+    
+    // Get recent users (last 7 days)
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const recentUsers = await prisma.user.count({
+      where: {
+        createdAt: {
+          gte: sevenDaysAgo
+        }
+      }
     });
 
     res.json({
-      success: true,
-      analytics: {
-        totalUsers,
-        totalFacilities,
-        totalBookings,
-        totalCourts,
-        recentRegistrations,
-        bookingTrends,
-        popularSports
-      }
+      totalUsers,
+      activeUsers,
+      inactiveUsers: totalUsers - activeUsers,
+      adminCount,
+      ownerCount,
+      userCount,
+      recentUsers
     });
   } catch (error) {
-    console.error('Get analytics error:', error);
-    res.status(500).json({ error: true, message: 'Failed to get analytics' });
+    console.error('Error fetching stats:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Reset user password (Admin only)
+router.patch('/users/:id/reset-password', auth, admin, async (req, res) => {
+  try {
+    const { newPassword } = req.body;
+    const userId = req.params.id;
+    
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        phone: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true
+      }
+    });
+
+    res.json({ 
+      message: 'Password reset successfully',
+      user 
+    });
+  } catch (error) {
+    console.error('Error resetting password:', error);
+    if (error.code === 'P2025') {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.status(500).json({ message: 'Server error' });
   }
 });
 

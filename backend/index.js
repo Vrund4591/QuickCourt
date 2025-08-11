@@ -26,7 +26,33 @@ const ownerRoutes = require('./routes/owner');
 const reportsRoutes = require('./routes/reports');
 
 const app = express();
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  log: ['query', 'info', 'warn', 'error'],
+});
+
+// Test database connection
+async function testDatabaseConnection() {
+  try {
+    await prisma.$connect();
+    console.log('✅ Database connected successfully');
+  } catch (error) {
+    console.error('❌ Database connection failed:', error.message);
+    console.log('🔄 Retrying database connection in 5 seconds...');
+    
+    setTimeout(async () => {
+      try {
+        await prisma.$connect();
+        console.log('✅ Database reconnected successfully');
+      } catch (retryError) {
+        console.error('❌ Database reconnection failed:', retryError.message);
+        console.log('⚠️  Server will continue running, but database operations may fail');
+      }
+    }, 5000);
+  }
+}
+
+// Initialize database connection
+testDatabaseConnection();
 
 // Middleware
 app.use(cors());
@@ -48,8 +74,48 @@ app.use('/api/owner', ownerRoutes);
 app.use('/api/reports', reportsRoutes);
 
 // Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', message: 'QuickCourt API is running' });
+app.get('/api/health', async (req, res) => {
+  try {
+    // Test database connection
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ 
+      status: 'OK', 
+      message: 'QuickCourt API is running',
+      database: 'Connected',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Health check failed:', error);
+    res.status(503).json({ 
+      status: 'ERROR', 
+      message: 'Service unavailable',
+      database: 'Disconnected',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Database health check endpoint
+app.get('/api/health/database', async (req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    const userCount = await prisma.user.count();
+    res.json({ 
+      status: 'Connected', 
+      message: 'Database is accessible',
+      userCount,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Database health check failed:', error);
+    res.status(503).json({ 
+      status: 'Disconnected', 
+      message: 'Database is not accessible',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 // Error handling middleware
