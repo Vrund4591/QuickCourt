@@ -5,6 +5,7 @@ const { PrismaClient } = require('../generated/prisma');
 const { sendOTPEmail } = require('../utils/email');
 const { generateOTP } = require('../utils/helpers');
 const { body, validationResult } = require('express-validator');
+const auth = require('../middleware/auth');
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -284,5 +285,102 @@ router.post('/register', [
   return router.handle(req, res);
 });
 
-module.exports = router;
+// Get user profile
+router.get('/profile', auth, async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.userId },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        phone: true,
+        address: true,
+        role: true,
+        createdAt: true
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: true, message: 'User not found' });
+    }
+
+    res.json({ success: true, user });
+  } catch (error) {
+    console.error('Get profile error:', error);
+    res.status(500).json({ error: true, message: 'Failed to get profile' });
+  }
+});
+
+// Update user profile
+router.put('/profile', auth, async (req, res) => {
+  try {
+    const { fullName, email, phone, address, currentPassword, newPassword } = req.body;
+
+    // Get current user
+    const currentUser = await prisma.user.findUnique({
+      where: { id: req.user.userId }
+    });
+
+    if (!currentUser) {
+      return res.status(404).json({ error: true, message: 'User not found' });
+    }
+
+    // If email is being changed, check if it's already in use
+    if (email && email !== currentUser.email) {
+      const existingUser = await prisma.user.findUnique({
+        where: { email }
+      });
+
+      if (existingUser) {
+        return res.status(400).json({ error: true, message: 'Email already in use' });
+      }
+    }
+
+    // Prepare update data
+    const updateData = {};
+    if (fullName) updateData.fullName = fullName;
+    if (email) updateData.email = email;
+    if (phone) updateData.phone = phone;
+    if (address) updateData.address = address;
+
+    // Handle password change if provided
+    if (newPassword) {
+      if (!currentPassword) {
+        return res.status(400).json({ error: true, message: 'Current password is required' });
+      }
+
+      // Verify current password
+      const isValidPassword = await bcrypt.compare(currentPassword, currentUser.password);
+      if (!isValidPassword) {
+        return res.status(400).json({ error: true, message: 'Current password is incorrect' });
+      }
+
+      // Hash new password
+      const saltRounds = 10;
+      updateData.password = await bcrypt.hash(newPassword, saltRounds);
+    }
+
+    // Update user
+    const updatedUser = await prisma.user.update({
+      where: { id: req.user.userId },
+      data: updateData,
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        phone: true,
+        address: true,
+        role: true,
+        createdAt: true
+      }
+    });
+
+    res.json({ success: true, user: updatedUser, message: 'Profile updated successfully' });
+  } catch (error) {
+    console.error('Update profile error:', error);
+    res.status(500).json({ error: true, message: 'Failed to update profile' });
+  }
+});
+
 module.exports = router;

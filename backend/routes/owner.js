@@ -260,4 +260,38 @@ router.post('/courts', auth, ownerAuth, async (req, res) => {
   }
 });
 
+// Get facility owner bookings
+router.get('/bookings', auth, async (req, res) => {
+  try {
+    if (req.user.role !== 'FACILITY_OWNER') {
+      return res.status(403).json({ error: true, message: 'Only facility owners can access this' });
+    }
+
+    const bookings = await prisma.booking.findMany({
+      where: {
+        facility: {
+          ownerId: req.user.userId
+        }
+      },
+      include: {
+        user: {
+          select: { fullName: true, email: true }
+        },
+        facility: {
+          select: { name: true }
+        },
+        court: {
+          select: { name: true, sportType: true }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    res.json({ success: true, bookings });
+  } catch (error) {
+    console.error('Get owner bookings error:', error);
+    res.status(500).json({ error: true, message: 'Failed to get bookings' });
+  }
+});
+
 module.exports = router;

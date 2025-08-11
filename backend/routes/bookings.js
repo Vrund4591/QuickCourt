@@ -5,6 +5,40 @@ const auth = require('../middleware/auth');
 const router = express.Router();
 const prisma = new PrismaClient();
 
+// Owner bookings endpoint (matches frontend expectations)
+router.get('/owner/bookings', auth, async (req, res) => {
+  try {
+    if (req.user.role !== 'FACILITY_OWNER') {
+      return res.status(403).json({ error: true, message: 'Only facility owners can access this' });
+    }
+
+    const bookings = await prisma.booking.findMany({
+      where: {
+        facility: {
+          ownerId: req.user.userId
+        }
+      },
+      include: {
+        user: {
+          select: { fullName: true, email: true }
+        },
+        facility: {
+          select: { name: true }
+        },
+        court: {
+          select: { name: true, sportType: true }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    res.json({ success: true, bookings });
+  } catch (error) {
+    console.error('Get owner bookings error:', error);
+    res.status(500).json({ error: true, message: 'Failed to get bookings' });
+  }
+});
+
 // Get user bookings
 router.get('/my-bookings', auth, async (req, res) => {
   try {
@@ -205,6 +239,55 @@ router.put('/:id/cancel', auth, async (req, res) => {
   } catch (error) {
     console.error('Cancel booking error:', error);
     res.status(500).json({ error: true, message: 'Failed to cancel booking' });
+  }
+});
+
+// Get all bookings (general endpoint)
+router.get('/', auth, async (req, res) => {
+  try {
+    let bookings;
+
+    if (req.user.role === 'FACILITY_OWNER') {
+      // Return bookings for facilities owned by this user
+      bookings = await prisma.booking.findMany({
+        where: {
+          facility: {
+            ownerId: req.user.userId
+          }
+        },
+        include: {
+          user: {
+            select: { fullName: true, email: true }
+          },
+          facility: {
+            select: { name: true }
+          },
+          court: {
+            select: { name: true, sportType: true }
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+    } else {
+      // Return user's own bookings
+      bookings = await prisma.booking.findMany({
+        where: { userId: req.user.userId },
+        include: {
+          facility: {
+            select: { name: true, address: true }
+          },
+          court: {
+            select: { name: true, sportType: true }
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+    }
+
+    res.json({ success: true, bookings });
+  } catch (error) {
+    console.error('Get bookings error:', error);
+    res.status(500).json({ error: true, message: 'Failed to get bookings' });
   }
 });
 

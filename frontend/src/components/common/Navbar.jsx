@@ -33,7 +33,7 @@ const Navbar = () => {
         return [
           { name: 'Home', href: '/', icon: HomeIcon },
           { name: 'Venues', href: '/venues', icon: BuildingOfficeIcon },
-          { name: 'My Bookings', href: '/my-bookings', icon: CalendarIcon },
+          // { name: 'My Bookings', href: '/my-bookings', icon: CalendarIcon },
           { name: 'Profile', href: '/profile', icon: UserIcon }
         ]
       case 'FACILITY_OWNER':
@@ -96,14 +96,14 @@ const Navbar = () => {
               
               {/* User Menu */}
               <div className="flex items-center space-x-4">
-                <div className="flex items-center space-x-2">
+                {/* <div className="flex items-center space-x-2">
                   <img
                     src={user.avatar || '/default-avatar.png'}
                     alt={user.fullName}
                     className="h-8 w-8 rounded-full object-cover"
                   />
                   <span className="text-sm font-medium text-gray-700">{user.fullName}</span>
-                </div>
+                </div> */}
                 <button
                   onClick={handleLogout}
                   className="flex items-center space-x-1 text-gray-500 hover:text-red-600 transition-colors"

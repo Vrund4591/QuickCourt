@@ -13,8 +13,9 @@ const VenueDetail = () => {
   const [selectedDate, setSelectedDate] = useState('')
   const [selectedCourt, setSelectedCourt] = useState(null)
   const [selectedSlots, setSelectedSlots] = useState([])
+  const [currentImageIndex, setCurrentImageIndex] = useState(0)
 
-  const { data: facility, isLoading, error } = useQuery({
+  const { data: facility, isLoading } = useQuery({
     queryKey: ['facility', id],
     queryFn: async () => {
       const response = await api.get(`/facilities/${id}`)
@@ -94,48 +95,112 @@ const VenueDetail = () => {
     ? facility.reviews.reduce((sum, review) => sum + review.rating, 0) / facility.reviews.length 
     : 0
 
+  const nextImage = () => {
+    if (facility.images && facility.images.length > 1) {
+      setCurrentImageIndex((prev) => (prev + 1) % facility.images.length)
+    }
+  }
+
+  const prevImage = () => {
+    if (facility.images && facility.images.length > 1) {
+      setCurrentImageIndex((prev) => (prev - 1 + facility.images.length) % facility.images.length)
+    }
+  }
+
+  const getUniqueCourtTypes = () => {
+    if (!facility?.courts) return []
+    const types = [...new Set(facility.courts.map(court => court.sportType))]
+    return types
+  }
+
   return (
     <div className="bg-gray-50 min-h-screen">
       <div className="container mx-auto px-4 py-8">
-        {/* Header */}
+        {/* Hero Section - 70/30 Layout */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Images */}
-            <div>
-              {facility.images && facility.images.length > 0 ? (
-                <img
-                  src={facility.images[0]}
-                  alt={facility.name}
-                  className="w-full h-64 object-cover rounded-lg"
-                />
-              ) : (
-                <div className="w-full h-64 bg-gray-200 rounded-lg flex items-center justify-center">
-                  <span className="text-gray-500">No image available</span>
-                </div>
-              )}
+          <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
+            {/* Image Slider - 70% */}
+            <div className="lg:col-span-7">
+              <div className="relative">
+                {facility.images && facility.images.length > 0 ? (
+                  <div className="relative">
+                    <img
+                      src={facility.images[currentImageIndex]}
+                      alt={facility.name}
+                      className="w-full h-96 object-cover rounded-lg"
+                    />
+                    {facility.images.length > 1 && (
+                      <>
+                        <button
+                          onClick={prevImage}
+                          className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70"
+                        >
+                          ←
+                        </button>
+                        <button
+                          onClick={nextImage}
+                          className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70"
+                        >
+                          →
+                        </button>
+                        {/* Image indicators */}
+                        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+                          {facility.images.map((_, index) => (
+                            <button
+                              key={index}
+                              onClick={() => setCurrentImageIndex(index)}
+                              className={`w-2 h-2 rounded-full ${
+                                index === currentImageIndex ? 'bg-white' : 'bg-white/50'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ) : (
+                  <div className="w-full h-96 bg-gray-200 rounded-lg flex items-center justify-center">
+                    <span className="text-gray-500">No image available</span>
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Details */}
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-4">{facility.name}</h1>
+            {/* Booking Info - 30% */}
+            <div className="lg:col-span-3">
+              <h1 className="text-2xl font-bold text-gray-900 mb-4">{facility.name}</h1>
               
               <div className="flex items-center mb-3">
                 <MapPinIcon className="h-5 w-5 text-gray-500 mr-2" />
-                <span className="text-gray-600">{facility.address}</span>
+                <span className="text-gray-600 text-sm">{facility.address}</span>
               </div>
+
+              {facility.phone && (
+                <div className="flex items-center mb-3">
+                  <PhoneIcon className="h-5 w-5 text-gray-500 mr-2" />
+                  <span className="text-gray-600 text-sm">{facility.phone}</span>
+                </div>
+              )}
+
+              {facility.openingHours && (
+                <div className="flex items-center mb-4">
+                  <ClockIcon className="h-5 w-5 text-gray-500 mr-2" />
+                  <span className="text-gray-600 text-sm">{facility.openingHours}</span>
+                </div>
+              )}
 
               {averageRating > 0 && (
                 <div className="flex items-center mb-4">
                   <div className="flex items-center">
                     {[1, 2, 3, 4, 5].map((star) => (
                       star <= averageRating ? (
-                        <StarIconSolid key={star} className="h-5 w-5 text-yellow-400" />
+                        <StarIconSolid key={star} className="h-4 w-4 text-yellow-400" />
                       ) : (
-                        <StarIcon key={star} className="h-5 w-5 text-gray-300" />
+                        <StarIcon key={star} className="h-4 w-4 text-gray-300" />
                       )
                     ))}
                   </div>
-                  <span className="ml-2 text-gray-600">
+                  <span className="ml-2 text-gray-600 text-sm">
                     {averageRating.toFixed(1)} ({facility.reviews?.length} reviews)
                   </span>
                 </div>
@@ -147,30 +212,104 @@ const VenueDetail = () => {
                 </span>
               </div>
 
-              <p className="text-gray-700 mb-6">{facility.description}</p>
+              <button
+                onClick={() => document.getElementById('booking-section').scrollIntoView({ behavior: 'smooth' })}
+                className="w-full bg-[#714B67] text-white py-3 px-4 rounded-lg font-semibold hover:bg-purple-700 transition-colors"
+              >
+                Book This Venue
+              </button>
 
-              {/* Amenities */}
-              {facility.amenities && facility.amenities.length > 0 && (
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold mb-3">Amenities</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {facility.amenities.map((amenity, index) => (
-                      <span
-                        key={index}
-                        className="bg-gray-100 text-gray-700 px-3 py-1 rounded-md text-sm"
-                      >
-                        {amenity}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
+              {/* Map placeholder */}
+              <div className="mt-4 h-32 bg-gray-200 rounded-lg flex items-center justify-center">
+                <span className="text-gray-500 text-sm">Map Location</span>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Courts and Booking */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Sports Section */}
+        {facility?.courts && facility.courts.length > 0 && (
+          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 className="text-xl font-bold mb-4">Sports Available</h2>
+            <div className="flex flex-wrap gap-3">
+              {getUniqueCourtTypes().map((sportType, index) => (
+                <div key={index} className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex-1 min-w-[200px]">
+                  <div className="text-center">
+                    <div className="text-2xl mb-2">🏸</div>
+                    <h3 className="font-semibold text-gray-800">{sportType}</h3>
+                    <p className="text-sm text-gray-600">
+                      {facility.courts.filter(court => court.sportType === sportType).length} courts available
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Amenities Section */}
+        {facility.amenities && facility.amenities.length > 0 && (
+          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 className="text-xl font-bold mb-4">Amenities</h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {facility.amenities.map((amenity, index) => (
+                <div key={index} className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span className="text-gray-700">{amenity}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Description Section */}
+        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+          <h2 className="text-xl font-bold mb-4">About This Venue</h2>
+          <p className="text-gray-700 leading-relaxed">{facility.description}</p>
+        </div>
+
+        {/* Reviews Section */}
+        {facility.reviews && facility.reviews.length > 0 && (
+          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 className="text-xl font-bold mb-4">Customer Reviews</h2>
+            <div className="space-y-4">
+              {facility.reviews.slice(0, 5).map((review) => (
+                <div key={review.id} className="border-b border-gray-200 pb-4 last:border-b-0">
+                  <div className="flex items-center mb-2">
+                    <img
+                      src={review.user.avatar || '/default-avatar.png'}
+                      alt={review.user.fullName}
+                      className="h-8 w-8 rounded-full mr-3"
+                    />
+                    <div>
+                      <p className="font-medium">{review.user.fullName}</p>
+                      <div className="flex items-center">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          star <= review.rating ? (
+                            <StarIconSolid key={star} className="h-4 w-4 text-yellow-400" />
+                          ) : (
+                            <StarIcon key={star} className="h-4 w-4 text-gray-300" />
+                          )
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-gray-700">{review.comment}</p>
+                </div>
+              ))}
+              {facility.reviews.length > 5 && (
+                <div className="text-center pt-4">
+                  <button className="text-blue-600 hover:text-blue-800 font-medium">
+                    Show all {facility.reviews.length} reviews
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Booking Section */}
+        <div id="booking-section" className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Courts List */}
           <div className="lg:col-span-1">
             <div className="bg-white rounded-lg shadow-md p-6">
@@ -224,7 +363,7 @@ const VenueDetail = () => {
             </div>
           </div>
 
-          {/* Booking Section */}
+          {/* Booking Form */}
           <div className="lg:col-span-2">
             <div className="bg-white rounded-lg shadow-md p-6">
               <h2 className="text-xl font-bold mb-4">Book Your Slot</h2>
@@ -329,51 +468,18 @@ const VenueDetail = () => {
               <button
                 onClick={handleBookNow}
                 disabled={!selectedCourt || selectedSlots.length === 0}
-                className="w-full bg-[#714B67] text-white py-3 px-4 rounded-lg font-semibold hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                className="w-full bg-[#714B67] text-white py-3 px-4 rounded-lg font-semibold hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
               >
                 {!selectedCourt 
                   ? 'Select a Court' 
                   : selectedSlots.length === 0 
                   ? 'Select Time Slots' 
-                  : 'Book Now'
+                  : 'Proceed to Payment'
                 }
               </button>
             </div>
           </div>
         </div>
-
-        {/* Reviews Section */}
-        {facility.reviews && facility.reviews.length > 0 && (
-          <div className="bg-white rounded-lg shadow-md p-6 mt-6">
-            <h2 className="text-xl font-bold mb-4">Reviews</h2>
-            <div className="space-y-4">
-              {facility.reviews.map((review) => (
-                <div key={review.id} className="border-b border-gray-200 pb-4">
-                  <div className="flex items-center mb-2">
-                    <img
-                      src={review.user.avatar || '/default-avatar.png'}
-                      alt={review.user.fullName}
-                      className="h-8 w-8 rounded-full mr-3"
-                    />
-                    <div>
-                      <p className="font-medium">{review.user.fullName}</p>
-                      <div className="flex items-center">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          star <= review.rating ? (
-                            <StarIconSolid key={star} className="h-4 w-4 text-yellow-400" />
-                          ) : (
-                            <StarIcon key={star} className="h-4 w-4 text-gray-300" />
-                          )
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                  <p className="text-gray-700">{review.comment}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   )
