@@ -225,4 +225,39 @@ router.delete('/courts/:id', auth, ownerAuth, async (req, res) => {
   }
 });
 
+// Create court for owner's facility
+router.post('/courts', auth, ownerAuth, async (req, res) => {
+  try {
+    const { name, sportType, pricePerHour, facilityId } = req.body;
+
+    // Verify facility ownership
+    const facility = await prisma.facility.findUnique({
+      where: { id: facilityId }
+    });
+
+    if (!facility || facility.ownerId !== req.user.userId) {
+      return res.status(403).json({ error: true, message: 'Not authorized' });
+    }
+
+    const court = await prisma.court.create({
+      data: {
+        name,
+        sportType,
+        pricePerHour: parseFloat(pricePerHour),
+        facilityId
+      },
+      include: {
+        facility: {
+          select: { name: true }
+        }
+      }
+    });
+
+    res.status(201).json({ success: true, message: 'Court created successfully', court });
+  } catch (error) {
+    console.error('Create court error:', error);
+    res.status(500).json({ error: true, message: 'Failed to create court' });
+  }
+});
+
 module.exports = router;
