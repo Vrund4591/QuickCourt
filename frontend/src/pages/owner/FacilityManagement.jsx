@@ -102,7 +102,7 @@ const FacilityManagement = () => {
           </p>
           <button
             onClick={() => window.location.reload()}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+            className="bg-[#714B67] text-white px-4 py-2 rounded-lg hover:bg-blue-700"
           >
             Retry
           </button>
@@ -120,7 +120,7 @@ const FacilityManagement = () => {
         </div>
         <button
           onClick={() => setShowAddForm(true)}
-          className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          className="flex items-center space-x-2 bg-[#714B67] text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
         >
           <PlusIcon className="h-5 w-5" />
           <span>Add Facility</span>
@@ -222,7 +222,7 @@ const FacilityManagement = () => {
               <button
                 type="submit"
                 disabled={createFacilityMutation.isLoading}
-                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:bg-blue-400 transition-colors"
+                className="bg-[#714B67] text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:bg-blue-400 transition-colors"
               >
                 {createFacilityMutation.isLoading ? 'Creating...' : 'Create Facility'}
               </button>

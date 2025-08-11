@@ -30,7 +30,7 @@ const OwnerDashboard = () => {
           </p>
           <button
             onClick={() => window.location.reload()}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+            className="bg-[#714B67] text-white px-4 py-2 rounded-lg hover:bg-blue-700"
           >
             Retry
           </button>

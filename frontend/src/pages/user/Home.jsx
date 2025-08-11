@@ -7,7 +7,7 @@ const Home = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white">
+      <div className="bg-[#714B67] text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
           <div className="text-center">
             <h1 className="text-4xl md:text-6xl font-bold mb-6 caveat">

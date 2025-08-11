@@ -101,7 +101,7 @@ const Venues = () => {
               />
               <button
                 type="submit"
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-blue-600 text-white px-4 py-1.5 rounded-md hover:bg-blue-700 transition-colors"
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-[#714B67] text-white px-4 py-1.5 rounded-md hover:bg-blue-700 transition-colors"
               >
                 Search
               </button>
@@ -212,7 +212,7 @@ const Venues = () => {
             <p className="text-gray-600 mb-6">Try adjusting your search criteria or filters</p>
             <button
               onClick={clearFilters}
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+              className="bg-[#714B67] text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
             >
               Clear Filters
             </button>
@@ -332,7 +332,7 @@ const Venues = () => {
                   onClick={() => handleFilterChange('page', page)}
                   className={`px-4 py-2 border rounded-lg ${
                     filters.page === page
-                      ? 'bg-blue-600 text-white border-blue-600'
+                      ? 'bg-[#714B67] text-white border-blue-600'
                       : 'border-gray-300 hover:bg-gray-50'
                   }`}
                 >

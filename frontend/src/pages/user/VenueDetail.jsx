@@ -329,7 +329,7 @@ const VenueDetail = () => {
               <button
                 onClick={handleBookNow}
                 disabled={!selectedCourt || selectedSlots.length === 0}
-                className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                className="w-full bg-[#714B67] text-white py-3 px-4 rounded-lg font-semibold hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
               >
                 {!selectedCourt 
                   ? 'Select a Court' 

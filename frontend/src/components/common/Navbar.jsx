@@ -65,7 +65,7 @@ const Navbar = () => {
           {/* Logo */}
           <div className="flex items-center">
             <Link to="/" className="flex items-center space-x-2">
-              <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center">
+              <div className="h-8 w-8 bg-[#714B67] rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-lg">Q</span>
               </div>
               <span className="text-xl font-bold text-gray-900 caveat">QuickCourt</span>

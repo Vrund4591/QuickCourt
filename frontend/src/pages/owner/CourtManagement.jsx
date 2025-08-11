@@ -186,7 +186,7 @@ const CourtManagement = () => {
           </p>
           <button
             onClick={() => window.location.reload()}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+            className="bg-[#714B67] text-white px-4 py-2 rounded-lg hover:bg-blue-700"
           >
             Retry
           </button>
@@ -205,7 +205,7 @@ const CourtManagement = () => {
         <button
           onClick={() => setShowAddForm(true)}
           disabled={!facilities || facilities.length === 0}
-          className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+          className="flex items-center space-x-2 bg-[#714B67] text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
         >
           <PlusIcon className="h-5 w-5" />
           <span>Add Court</span>
@@ -314,7 +314,7 @@ const CourtManagement = () => {
               <button
                 type="submit"
                 disabled={createCourtMutation.isLoading || updateCourtMutation.isLoading}
-                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:bg-blue-400 transition-colors"
+                className="bg-[#714B67] text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:bg-blue-400 transition-colors"
               >
                 {createCourtMutation.isLoading || updateCourtMutation.isLoading 
                   ? (editingCourt ? 'Updating...' : 'Creating...') 

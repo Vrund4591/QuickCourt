@@ -1,21 +1,20 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
-import { EyeIcon, EyeSlashIcon, UserIcon, BuildingOfficeIcon } from '@heroicons/react/24/outline'
-import toast from 'react-hot-toast'
+import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
 
-const Signup = () => {
+const Register = () => {
   const [formData, setFormData] = useState({
-    fullName: '',
+    firstName: '',
+    lastName: '',
     email: '',
     password: '',
-    confirmPassword: '',
-    role: 'USER'
+    confirmPassword: ''
   })
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [loading, setLoading] = useState(false)
-  const { signup } = useAuth()
+  const { register } = useAuth()
   const navigate = useNavigate()
 
   const handleChange = (e) => {
@@ -27,28 +26,18 @@ const Signup = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
-    if (formData.password !== formData.confirmPassword) {
-      toast.error('Passwords do not match')
-      return
-    }
-
-    if (formData.password.length < 6) {
-      toast.error('Password must be at least 6 characters')
-      return
-    }
-
     setLoading(true)
 
-    const result = await signup({
-      fullName: formData.fullName,
-      email: formData.email,
-      password: formData.password,
-      role: formData.role
-    })
+    if (formData.password !== formData.confirmPassword) {
+      alert('Passwords do not match')
+      setLoading(false)
+      return
+    }
+
+    const result = await register(formData.firstName, formData.lastName, formData.email, formData.password)
     
     if (result.success) {
-      navigate('/verify-otp', { state: { email: formData.email } })
+      navigate('/')
     }
     
     setLoading(false)
@@ -65,64 +54,49 @@ const Signup = () => {
         </div>
       </div>
 
-      {/* Right side - Signup Form */}
+      {/* Right side - Register Form */}
       <div className="flex-1 bg-white flex items-center justify-center px-8">
-        <div className="max-w-md w-full space-y-6">
+        <div className="max-w-md w-full space-y-8">
           <div className="text-center">
             <h1 className="text-2xl font-bold text-gray-900 mb-2">QUICKCOURT</h1>
-            <h2 className="text-xl font-semibold text-gray-700 mb-6">SIGN UP</h2>
+            <h2 className="text-xl font-semibold text-gray-700 mb-8">REGISTER</h2>
           </div>
           
-          <form className="space-y-4" onSubmit={handleSubmit}>
-            {/* Role Selection */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                I want to join as
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setFormData(prev => ({ ...prev, role: 'USER' }))}
-                  className={`p-3 border-2 rounded-lg flex items-center justify-center space-x-2 transition-colors ${
-                    formData.role === 'USER'
-                      ? 'border-[#714B67] bg-[#714B67]/10 text-[#714B67]'
-                      : 'border-gray-300 hover:border-gray-400'
-                  }`}
-                >
-                  <UserIcon className="h-5 w-5" />
-                  <span className="font-medium">Player</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFormData(prev => ({ ...prev, role: 'FACILITY_OWNER' }))}
-                  className={`p-3 border-2 rounded-lg flex items-center justify-center space-x-2 transition-colors ${
-                    formData.role === 'FACILITY_OWNER'
-                      ? 'border-[#714B67] bg-[#714B67]/10 text-[#714B67]'
-                      : 'border-gray-300 hover:border-gray-400'
-                  }`}
-                >
-                  <BuildingOfficeIcon className="h-5 w-5" />
-                  <span className="font-medium">Owner</span>
-                </button>
+          <form className="space-y-6" onSubmit={handleSubmit}>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
+                  First Name
+                </label>
+                <input
+                  id="firstName"
+                  name="firstName"
+                  type="text"
+                  required
+                  value={formData.firstName}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#714B67] focus:border-[#714B67] text-gray-900"
+                  placeholder=""
+                />
+              </div>
+              
+              <div>
+                <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
+                  Last Name
+                </label>
+                <input
+                  id="lastName"
+                  name="lastName"
+                  type="text"
+                  required
+                  value={formData.lastName}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#714B67] focus:border-[#714B67] text-gray-900"
+                  placeholder=""
+                />
               </div>
             </div>
 
-            <div>
-              <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-1">
-                Full Name
-              </label>
-              <input
-                id="fullName"
-                name="fullName"
-                type="text"
-                required
-                value={formData.fullName}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#714B67] focus:border-[#714B67] text-gray-900"
-                placeholder=""
-              />
-            </div>
-            
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
                 Email
@@ -149,6 +123,7 @@ const Signup = () => {
                   id="password"
                   name="password"
                   type={showPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
                   required
                   value={formData.password}
                   onChange={handleChange}
@@ -178,6 +153,7 @@ const Signup = () => {
                   id="confirmPassword"
                   name="confirmPassword"
                   type={showConfirmPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
                   required
                   value={formData.confirmPassword}
                   onChange={handleChange}
@@ -204,7 +180,7 @@ const Signup = () => {
                 disabled={loading}
                 className="w-full py-2 px-4 bg-[#714B67] text-white font-medium rounded-md hover:bg-[#5d3d56] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#714B67] disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Creating account...' : 'Sign Up'}
+                {loading ? 'Creating Account...' : 'Register'}
               </button>
             </div>
 
@@ -223,4 +199,4 @@ const Signup = () => {
   )
 }
 
-export default Signup
+export default Register

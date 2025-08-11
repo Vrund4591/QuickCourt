@@ -245,7 +245,7 @@ const Payment = () => {
           <button
             onClick={handlePayment}
             disabled={loading}
-            className="w-full bg-blue-600 text-white py-4 px-6 rounded-lg font-semibold text-lg hover:bg-blue-700 disabled:bg-blue-400 transition-colors flex items-center justify-center"
+            className="w-full bg-[#714B67] text-white py-4 px-6 rounded-lg font-semibold text-lg hover:bg-blue-700 disabled:bg-blue-400 transition-colors flex items-center justify-center"
           >
             {loading ? (
               <>
