@@ -16,26 +16,44 @@ const razorpay = new Razorpay({
 // Create Razorpay order
 router.post('/create-order', auth, async (req, res) => {
   try {
-    const { amount, currency = 'INR', receipt } = req.body;
+    const { amount, currency = 'INR', bookingIds } = req.body;
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid amount' 
+      });
+    }
 
     const options = {
-      amount: amount * 100, // Razorpay expects amount in paise
+      amount: Math.round(amount * 100), // Razorpay expects amount in paise
       currency,
-      receipt: receipt || `receipt_${Date.now()}`,
+      receipt: `receipt_${Date.now()}`,
+      notes: {
+        bookingIds: JSON.stringify(bookingIds),
+        userId: req.user.userId
+      }
     };
 
     const order = await razorpay.orders.create(options);
 
     res.json({
       success: true,
-      orderId: order.id,
-      amount: order.amount,
-      currency: order.currency,
+      order: {
+        id: order.id,
+        amount: order.amount,
+        currency: order.currency,
+        receipt: order.receipt
+      },
       key: process.env.RAZORPAY_KEY_ID
     });
   } catch (error) {
     console.error('Create order error:', error);
-    res.status(500).json({ error: true, message: 'Failed to create payment order' });
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to create payment order',
+      error: error.message 
+    });
   }
 });
 
@@ -104,6 +122,35 @@ router.get('/payment/:paymentId', auth, async (req, res) => {
   } catch (error) {
     console.error('Get payment error:', error);
     res.status(500).json({ error: true, message: 'Failed to get payment details' });
+  }
+});
+
+// Cancel payment order
+router.post('/cancel', auth, async (req, res) => {
+  try {
+    const { orderId, bookingIds } = req.body;
+
+    // Update bookings to cancelled status
+    if (bookingIds && bookingIds.length > 0) {
+      await prisma.booking.updateMany({
+        where: {
+          id: { in: bookingIds },
+          userId: req.user.userId
+        },
+        data: { status: 'CANCELLED' }
+      });
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'Payment cancelled and bookings updated' 
+    });
+  } catch (error) {
+    console.error('Cancel payment error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to cancel payment' 
+    });
   }
 });
 

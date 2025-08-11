@@ -18,7 +18,6 @@ const VenueDetail = () => {
     queryKey: ['facility', id],
     queryFn: async () => {
       const response = await api.get(`/facilities/${id}`)
-      console.log('Facility response:', response.data) // Debug log
       return response.data.facility
     }
   })
@@ -176,13 +175,12 @@ const VenueDetail = () => {
           <div className="lg:col-span-1">
             <div className="bg-white rounded-lg shadow-md p-6">
               <h2 className="text-xl font-bold mb-4">Available Courts</h2>
-              {console.log('Facility courts:', facility?.courts)} {/* Debug log */}
               {!facility?.courts || facility.courts.length === 0 ? (
                 <div className="text-center py-8">
                   <div className="text-gray-400 mb-2">🏸</div>
                   <p className="text-gray-600 mb-2">No courts available at this facility</p>
                   <p className="text-sm text-gray-500">
-                    {facility?.courts === undefined ? 'Loading courts...' : 'The facility owner hasn\'t added any courts yet.'}
+                    The facility owner hasn't added any courts yet.
                   </p>
                 </div>
               ) : (

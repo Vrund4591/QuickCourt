@@ -46,7 +46,29 @@ export const TIME_SLOTS = [
   '18:00', '19:00', '20:00', '21:00', '22:00', '23:00'
 ]
 
-export const RAZORPAY_KEY = import.meta.env.VITE_RAZORPAY_KEY_ID
+export const RAZORPAY_KEY = import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_cOPS6fO8bmZAGj'
+
+export const PAYMENT_STATUS = {
+  PENDING: 'PENDING',
+  SUCCESS: 'SUCCESS',
+  FAILED: 'FAILED',
+  CANCELLED: 'CANCELLED'
+}
+
+export const CURRENCY = 'INR'
+
+// Payment configuration
+export const PAYMENT_CONFIG = {
+  currency: CURRENCY,
+  theme: {
+    color: '#2563eb'
+  },
+  modal: {
+    backdrop_close: false,
+    escape: false,
+    handleback: false
+  }
+}
 
 // Helper function to format time slots
 export const formatTimeSlot = (startHour) => {

@@ -33,11 +33,36 @@ router.post('/', auth, async (req, res) => {
   try {
     const { facilityId, courtId, selectedDate, selectedSlots, totalAmount } = req.body;
 
+    console.log('Booking request:', { facilityId, courtId, selectedDate, selectedSlots, totalAmount });
+
     // Validate required fields
     if (!facilityId || !courtId || !selectedDate || !selectedSlots || selectedSlots.length === 0) {
       return res.status(400).json({
-        error: true,
+        success: false,
         message: 'All booking details are required'
+      });
+    }
+
+    // Validate totalAmount
+    if (!totalAmount || totalAmount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid total amount'
+      });
+    }
+
+    // Verify court exists and belongs to facility
+    const court = await prisma.court.findFirst({
+      where: {
+        id: courtId,
+        facilityId
+      }
+    });
+
+    if (!court) {
+      return res.status(404).json({
+        success: false,
+        message: 'Court not found'
       });
     }
 
@@ -67,7 +92,7 @@ router.post('/', auth, async (req, res) => {
 
     if (existingBookings.length > 0) {
       return res.status(400).json({
-        error: true,
+        success: false,
         message: 'Some time slots are already booked'
       });
     }
@@ -82,13 +107,15 @@ router.post('/', auth, async (req, res) => {
           bookingDate,
           startTime: slot.startTime,
           endTime: slot.endTime,
-          totalAmount: totalAmount / formattedSlots.length,
+          totalAmount: Math.round((totalAmount / formattedSlots.length) * 100) / 100, // Round to 2 decimal places
           status: 'PENDING'
         }
       })
     );
 
     const bookings = await Promise.all(bookingPromises);
+
+    console.log('Created bookings:', bookings);
 
     res.status(201).json({ 
       success: true, 
@@ -98,7 +125,11 @@ router.post('/', auth, async (req, res) => {
     });
   } catch (error) {
     console.error('Create booking error:', error);
-    res.status(500).json({ error: true, message: 'Failed to create booking' });
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to create booking',
+      error: error.message 
+    });
   }
 });
 

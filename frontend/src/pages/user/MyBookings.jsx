@@ -9,12 +9,17 @@ const MyBookings = () => {
   const [filterStatus, setFilterStatus] = useState('all')
   const queryClient = useQueryClient()
 
-  const { data: bookings, isLoading } = useQuery({
+  const { data: bookings, isLoading, error } = useQuery({
     queryKey: ['my-bookings'],
     queryFn: async () => {
       const response = await api.get('/bookings/my-bookings')
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to load bookings')
+      }
       return response.data.bookings
-    }
+    },
+    retry: 1,
+    staleTime: 1000 * 60 * 2 // 2 minutes
   })
 
   const cancelBookingMutation = useMutation({
@@ -61,6 +66,23 @@ const MyBookings = () => {
   }) || []
 
   if (isLoading) return <LoadingSpinner />
+
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Error Loading Bookings</h2>
+          <p className="text-gray-600 mb-4">{error.message}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">

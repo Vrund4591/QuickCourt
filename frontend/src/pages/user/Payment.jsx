@@ -24,11 +24,29 @@ const Payment = () => {
     setLoading(true)
 
     try {
+      // Check if Razorpay SDK is loaded
+      if (!window.Razorpay) {
+        throw new Error('Payment system is not available. Please refresh the page and try again.')
+      }
+
+      // Validate booking data
+      if (!facility || !court || !slots || slots.length === 0) {
+        throw new Error('Invalid booking data. Please try again.')
+      }
+
       // Format slots for API
       const formattedSlots = slots.map(slot => ({
         startTime: `${slot.padStart(2, '0')}:00`,
         endTime: `${(parseInt(slot) + 1).toString().padStart(2, '0')}:00`
       }))
+
+      console.log('Creating booking with:', {
+        facilityId: facility.id,
+        courtId: court.id,
+        selectedDate: date,
+        selectedSlots: formattedSlots,
+        totalAmount
+      })
 
       // Create booking first
       const bookingResponse = await api.post('/bookings', {
@@ -39,35 +57,66 @@ const Payment = () => {
         totalAmount
       })
 
+      console.log('Booking response:', bookingResponse.data)
+
       if (!bookingResponse.data.success) {
-        throw new Error(bookingResponse.data.message)
+        throw new Error(bookingResponse.data.message || 'Failed to create booking')
       }
 
       const bookings = bookingResponse.data.bookings
       const bookingIds = bookings.map(b => b.id)
 
+      console.log('Booking IDs:', bookingIds)
+
+      // Create Razorpay order
+      const orderResponse = await api.post('/payment/create-order', {
+        amount: totalAmount,
+        currency: 'INR',
+        bookingIds
+      })
+
+      console.log('Order response:', orderResponse.data)
+
+      if (!orderResponse.data.success) {
+        throw new Error(orderResponse.data.message || 'Failed to create payment order')
+      }
+
+      const { order, key } = orderResponse.data
+
+      if (!order || !order.id) {
+        throw new Error('Invalid payment order received')
+      }
+
       // Initialize Razorpay payment
       const options = {
-        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
-        amount: totalAmount * 100, // Amount in paise
-        currency: 'INR',
+        key: key || import.meta.env.VITE_RAZORPAY_KEY_ID,
+        amount: order.amount,
+        currency: order.currency,
         name: 'QuickCourt',
-        description: `Booking for ${facility.name}`,
-        order_id: `order_${Date.now()}`, // Generate order ID
+        description: `Booking for ${facility.name} - ${court.name}`,
+        order_id: order.id,
         handler: async function (response) {
+          console.log('Payment success response:', response)
           try {
-            // Confirm payment
-            await api.post('/bookings/confirm-payment', {
-              bookingIds,
-              paymentId: response.razorpay_payment_id,
-              paymentStatus: 'success'
+            // Verify payment
+            const verificationResponse = await api.post('/payment/verify', {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              bookingIds
             })
 
-            toast.success('Payment successful! Booking confirmed.')
-            navigate('/my-bookings')
+            console.log('Verification response:', verificationResponse.data)
+
+            if (verificationResponse.data.success) {
+              toast.success('Payment successful! Booking confirmed.')
+              navigate('/my-bookings')
+            } else {
+              throw new Error('Payment verification failed')
+            }
           } catch (error) {
-            toast.error('Payment verification failed')
-            console.error('Payment confirmation error:', error)
+            console.error('Payment verification error:', error)
+            toast.error('Payment verification failed. Please contact support.')
           }
         },
         prefill: {
@@ -76,30 +125,43 @@ const Payment = () => {
           contact: user.phone || ''
         },
         notes: {
-          facility_id: facility.id,
-          court_id: court.id,
-          booking_date: date
+          facility_name: facility.name,
+          court_name: court.name,
+          booking_date: date,
+          slots: slots.join(',')
         },
         theme: {
           color: '#2563eb'
         },
         modal: {
           ondismiss: function() {
+            console.log('Payment modal dismissed')
             // Handle payment cancellation
-            api.post('/bookings/confirm-payment', {
-              bookingIds,
-              paymentStatus: 'failed'
-            })
+            api.post('/payment/cancel', {
+              orderId: order.id,
+              bookingIds
+            }).catch(console.error)
             setLoading(false)
           }
         }
       }
 
+      console.log('Razorpay options:', options)
+
       const rzp = new window.Razorpay(options)
+      
+      rzp.on('payment.failed', function (response) {
+        console.error('Payment failed:', response.error)
+        toast.error(`Payment failed: ${response.error.description}`)
+        setLoading(false)
+      })
+      
       rzp.open()
 
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Booking failed')
+      console.error('Payment error:', error)
+      const errorMessage = error.response?.data?.message || error.message || 'Payment initialization failed'
+      toast.error(errorMessage)
       setLoading(false)
     }
   }

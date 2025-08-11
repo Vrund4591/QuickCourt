@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { CheckCircleIcon, ClockIcon, MapPinIcon } from '@heroicons/react/24/outline'
+import toast from 'react-hot-toast'
 
 const BookingConfirmation = () => {
   const navigate = useNavigate()
@@ -20,13 +21,28 @@ const BookingConfirmation = () => {
   const handleConfirmBooking = async () => {
     setLoading(true)
     
-    // Navigate to payment page with booking data
-    navigate('/payment', {
-      state: {
-        ...bookingData,
-        totalAmount
+    try {
+      // Check if Razorpay SDK is loaded
+      if (!window.Razorpay) {
+        throw new Error('Payment system is loading. Please wait and try again.')
       }
-    })
+
+      // Validate all required data
+      if (!facility || !court || !date || !slots || slots.length === 0) {
+        throw new Error('Invalid booking data. Please try again.')
+      }
+      
+      // Navigate to payment page with booking data
+      navigate('/payment', {
+        state: {
+          ...bookingData,
+          totalAmount
+        }
+      })
+    } catch (error) {
+      toast.error(error.message)
+      setLoading(false)
+    }
   }
 
   return (
