@@ -10,6 +10,16 @@ router.get('/court/:courtId/date/:date', async (req, res) => {
   try {
     const { courtId, date } = req.params;
     
+    // Validate court exists
+    const court = await prisma.court.findUnique({
+      where: { id: courtId },
+      include: { facility: true }
+    });
+
+    if (!court) {
+      return res.status(404).json({ error: true, message: 'Court not found' });
+    }
+
     // Get all possible time slots (6 AM to 10 PM)
     const allTimeSlots = [];
     for (let hour = 6; hour < 22; hour++) {
@@ -21,22 +31,35 @@ router.get('/court/:courtId/date/:date', async (req, res) => {
       });
     }
 
+    // Parse the date properly
+    const bookingDate = new Date(date);
+    bookingDate.setHours(0, 0, 0, 0);
+    
+    const nextDay = new Date(bookingDate);
+    nextDay.setDate(nextDay.getDate() + 1);
+
     // Get existing bookings for this date
     const existingBookings = await prisma.booking.findMany({
       where: {
         courtId,
-        bookingDate: new Date(date),
+        bookingDate: {
+          gte: bookingDate,
+          lt: nextDay
+        },
         status: { in: ['CONFIRMED', 'PENDING'] }
       }
     });
 
-    // Get blocked time slots
-    const blockedSlots = await prisma.blockedTimeSlot.findMany({
+    // Get blocked time slots (if you have this feature)
+    const blockedSlots = await prisma.blockedTimeSlot?.findMany({
       where: {
         courtId,
-        date: new Date(date)
+        date: {
+          gte: bookingDate,
+          lt: nextDay
+        }
       }
-    });
+    }) || [];
 
     // Mark booked and blocked slots as unavailable
     const availableSlots = allTimeSlots.map(slot => {

@@ -45,16 +45,22 @@ const CourtManagement = () => {
   // Create court mutation
   const createCourtMutation = useMutation({
     mutationFn: async (courtData) => {
+      console.log('Creating court with data:', courtData) // Debug log
       const response = await api.post('/courts', courtData)
+      console.log('Court creation response:', response.data) // Debug log
       return response.data
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries(['owner-courts'])
+      queryClient.invalidateQueries(['owner-facilities'])
+      // Also invalidate facility detail queries that might be cached
+      queryClient.invalidateQueries(['facility'])
       toast.success('Court created successfully')
       setShowAddForm(false)
       resetForm()
     },
     onError: (error) => {
+      console.error('Court creation error:', error) // Debug log
       toast.error(error.response?.data?.message || 'Failed to create court')
     }
   })
@@ -109,9 +115,13 @@ const CourtManagement = () => {
     }
 
     const courtData = {
-      ...formData,
-      pricePerHour: parseFloat(formData.pricePerHour)
+      name: formData.name.trim(),
+      sportType: formData.sportType,
+      pricePerHour: parseFloat(formData.pricePerHour),
+      facilityId: formData.facilityId
     }
+
+    console.log('Submitting court data:', courtData) // Debug log
 
     if (editingCourt) {
       updateCourtMutation.mutate({ id: editingCourt.id, data: courtData })

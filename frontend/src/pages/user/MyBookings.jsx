@@ -126,7 +126,7 @@ const MyBookings = () => {
                     </div>
                     <div className="flex items-center">
                       <ClockIcon className="h-4 w-4 mr-2" />
-                      <span>{booking.startTime} - {booking.endTime}</span>
+                      <span>{new Date(`1970-01-01T${booking.startTime}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(`1970-01-01T${booking.endTime}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                   </div>
 

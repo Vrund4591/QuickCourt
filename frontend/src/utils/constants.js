@@ -47,3 +47,15 @@ export const TIME_SLOTS = [
 ]
 
 export const RAZORPAY_KEY = import.meta.env.VITE_RAZORPAY_KEY_ID
+
+// Helper function to format time slots
+export const formatTimeSlot = (startHour) => {
+  const start = `${startHour.toString().padStart(2, '0')}:00`
+  const end = `${(parseInt(startHour) + 1).toString().padStart(2, '0')}:00`
+  return { start, end, display: `${start} to ${end}` }
+}
+
+// Helper function to get time slot display
+export const getTimeSlotDisplay = (startTime, endTime) => {
+  return `${startTime} to ${endTime}`
+}

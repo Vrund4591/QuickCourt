@@ -14,12 +14,24 @@ const VenueDetail = () => {
   const [selectedCourt, setSelectedCourt] = useState(null)
   const [selectedSlots, setSelectedSlots] = useState([])
 
-  const { data: facility, isLoading } = useQuery({
+  const { data: facility, isLoading, error } = useQuery({
     queryKey: ['facility', id],
     queryFn: async () => {
       const response = await api.get(`/facilities/${id}`)
+      console.log('Facility response:', response.data) // Debug log
       return response.data.facility
     }
+  })
+
+  // Get available time slots for selected court and date
+  const { data: timeSlots, isLoading: slotsLoading } = useQuery({
+    queryKey: ['time-slots', selectedCourt?.id, selectedDate],
+    queryFn: async () => {
+      if (!selectedCourt || !selectedDate) return []
+      const response = await api.get(`/time-slots/court/${selectedCourt.id}/date/${selectedDate}`)
+      return response.data.timeSlots || []
+    },
+    enabled: !!selectedCourt && !!selectedDate
   })
 
   useEffect(() => {
@@ -28,11 +40,23 @@ const VenueDetail = () => {
     setSelectedDate(today)
   }, [])
 
+  // Reset selected slots when court or date changes
+  useEffect(() => {
+    setSelectedSlots([])
+  }, [selectedCourt, selectedDate])
+
   const handleSlotSelection = (slot) => {
-    if (selectedSlots.includes(slot)) {
-      setSelectedSlots(prev => prev.filter(s => s !== slot))
+    if (!slot.isAvailable) {
+      toast.error(`This slot is ${slot.reason || 'unavailable'}`)
+      return
+    }
+
+    const slotTime = slot.startTime.split(':')[0] // Extract hour
+    
+    if (selectedSlots.includes(slotTime)) {
+      setSelectedSlots(prev => prev.filter(s => s !== slotTime))
     } else {
-      setSelectedSlots(prev => [...prev, slot])
+      setSelectedSlots(prev => [...prev, slotTime])
     }
   }
 
@@ -66,12 +90,6 @@ const VenueDetail = () => {
       </div>
     )
   }
-
-  const timeSlots = [
-    '06:00', '07:00', '08:00', '09:00', '10:00', '11:00',
-    '12:00', '13:00', '14:00', '15:00', '16:00', '17:00',
-    '18:00', '19:00', '20:00', '21:00', '22:00', '23:00'
-  ]
 
   const averageRating = facility.reviews?.length > 0 
     ? facility.reviews.reduce((sum, review) => sum + review.rating, 0) / facility.reviews.length 
@@ -158,30 +176,42 @@ const VenueDetail = () => {
           <div className="lg:col-span-1">
             <div className="bg-white rounded-lg shadow-md p-6">
               <h2 className="text-xl font-bold mb-4">Available Courts</h2>
-              <div className="space-y-3">
-                {facility.courts?.map((court) => (
-                  <div
-                    key={court.id}
-                    onClick={() => setSelectedCourt(court)}
-                    className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                      selectedCourt?.id === court.id
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="font-semibold">{court.name}</h3>
-                        <p className="text-sm text-gray-600">{court.sportType}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold text-blue-600">₹{court.pricePerHour}</p>
-                        <p className="text-xs text-gray-500">per hour</p>
+              {console.log('Facility courts:', facility?.courts)} {/* Debug log */}
+              {!facility?.courts || facility.courts.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="text-gray-400 mb-2">🏸</div>
+                  <p className="text-gray-600 mb-2">No courts available at this facility</p>
+                  <p className="text-sm text-gray-500">
+                    {facility?.courts === undefined ? 'Loading courts...' : 'The facility owner hasn\'t added any courts yet.'}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {facility.courts.map((court) => (
+                    <div
+                      key={court.id}
+                      onClick={() => setSelectedCourt(court)}
+                      className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                        selectedCourt?.id === court.id
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h3 className="font-semibold">{court.name}</h3>
+                          <p className="text-sm text-gray-600">{court.sportType}</p>
+                          <p className="text-xs text-gray-500">Court ID: {court.id}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-blue-600">₹{court.pricePerHour}</p>
+                          <p className="text-xs text-gray-500">per hour</p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -200,31 +230,67 @@ const VenueDetail = () => {
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
                   min={new Date().toISOString().split('T')[0]}
+                  max={new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]} // 30 days from now
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
+
+              {/* Court Selection Message */}
+              {!selectedCourt && (
+                <div className="text-center py-8 bg-gray-50 rounded-lg mb-6">
+                  <ClockIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600">Please select a court to view available time slots</p>
+                </div>
+              )}
 
               {/* Time Slots */}
               {selectedCourt && (
                 <div className="mb-6">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Select Time Slots
+                    Select Time Slots for {selectedCourt.name}
                   </label>
-                  <div className="grid grid-cols-4 gap-3">
-                    {timeSlots.map((slot) => (
-                      <button
-                        key={slot}
-                        onClick={() => handleSlotSelection(slot)}
-                        className={`p-3 border rounded-lg text-center transition-colors ${
-                          selectedSlots.includes(slot)
-                            ? 'border-blue-500 bg-blue-50 text-blue-700'
-                            : 'border-gray-300 hover:border-gray-400'
-                        }`}
-                      >
-                        {slot}
-                      </button>
-                    ))}
-                  </div>
+                  
+                  {slotsLoading ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                      <p className="text-gray-600 mt-2">Loading available slots...</p>
+                    </div>
+                  ) : timeSlots && timeSlots.length > 0 ? (
+                    <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                      {timeSlots.map((slot) => {
+                        const slotHour = slot.startTime.split(':')[0]
+                        const isSelected = selectedSlots.includes(slotHour)
+                        
+                        return (
+                          <button
+                            key={slot.id}
+                            onClick={() => handleSlotSelection(slot)}
+                            disabled={!slot.isAvailable}
+                            className={`p-3 border rounded-lg text-center text-sm transition-colors ${
+                              !slot.isAvailable
+                                ? 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'
+                                : isSelected
+                                ? 'border-blue-500 bg-blue-50 text-blue-700'
+                                : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+                            }`}
+                            title={!slot.isAvailable ? slot.reason : `${slot.startTime} - ${slot.endTime}`}
+                          >
+                            <div className="font-medium">{slot.startTime}</div>
+                            <div className="text-xs">to {slot.endTime}</div>
+                            {!slot.isAvailable && (
+                              <div className="text-xs text-red-500 mt-1">
+                                {slot.reason}
+                              </div>
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 bg-gray-50 rounded-lg">
+                      <p className="text-gray-600">No time slots available for this date</p>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -234,8 +300,15 @@ const VenueDetail = () => {
                   <h3 className="font-semibold mb-2">Booking Summary</h3>
                   <div className="space-y-1 text-sm">
                     <p><span className="font-medium">Court:</span> {selectedCourt.name}</p>
-                    <p><span className="font-medium">Date:</span> {selectedDate}</p>
-                    <p><span className="font-medium">Slots:</span> {selectedSlots.join(', ')}</p>
+                    <p><span className="font-medium">Date:</span> {new Date(selectedDate).toLocaleDateString()}</p>
+                    <p><span className="font-medium">Time Slots:</span></p>
+                    <div className="ml-4 space-y-1">
+                      {selectedSlots.sort((a, b) => parseInt(a) - parseInt(b)).map((slot, index) => (
+                        <div key={index} className="text-blue-600">
+                          {slot}:00 - {parseInt(slot) + 1}:00
+                        </div>
+                      ))}
+                    </div>
                     <p><span className="font-medium">Duration:</span> {selectedSlots.length} hour(s)</p>
                     <p className="text-lg font-bold text-blue-600">
                       Total: ₹{selectedCourt.pricePerHour * selectedSlots.length}
@@ -249,7 +322,12 @@ const VenueDetail = () => {
                 disabled={!selectedCourt || selectedSlots.length === 0}
                 className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
               >
-                Book Now
+                {!selectedCourt 
+                  ? 'Select a Court' 
+                  : selectedSlots.length === 0 
+                  ? 'Select Time Slots' 
+                  : 'Book Now'
+                }
               </button>
             </div>
           </div>

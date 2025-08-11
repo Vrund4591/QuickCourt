@@ -24,15 +24,18 @@ const Payment = () => {
     setLoading(true)
 
     try {
+      // Format slots for API
+      const formattedSlots = slots.map(slot => ({
+        startTime: `${slot.padStart(2, '0')}:00`,
+        endTime: `${(parseInt(slot) + 1).toString().padStart(2, '0')}:00`
+      }))
+
       // Create booking first
       const bookingResponse = await api.post('/bookings', {
         facilityId: facility.id,
         courtId: court.id,
         selectedDate: date,
-        selectedSlots: slots.map(slot => ({
-          startTime: `${slot}:00`,
-          endTime: `${parseInt(slot) + 1}:00`
-        })),
+        selectedSlots: formattedSlots,
         totalAmount
       })
 
@@ -130,7 +133,13 @@ const Payment = () => {
               </div>
               <div className="flex justify-between">
                 <span className="font-medium">Time Slots:</span>
-                <span>{slots.length} hour(s)</span>
+                <div className="text-right">
+                  {slots.sort((a, b) => parseInt(a) - parseInt(b)).map((slot, index) => (
+                    <div key={index} className="text-sm">
+                      {slot.padStart(2, '0')}:00 - {(parseInt(slot) + 1).toString().padStart(2, '0')}:00
+                    </div>
+                  ))}
+                </div>
               </div>
               <div className="border-t border-gray-200 pt-3">
                 <div className="flex justify-between text-lg font-bold">

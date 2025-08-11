@@ -33,13 +33,35 @@ router.post('/', auth, async (req, res) => {
   try {
     const { facilityId, courtId, selectedDate, selectedSlots, totalAmount } = req.body;
 
+    // Validate required fields
+    if (!facilityId || !courtId || !selectedDate || !selectedSlots || selectedSlots.length === 0) {
+      return res.status(400).json({
+        error: true,
+        message: 'All booking details are required'
+      });
+    }
+
+    // Convert selectedSlots to proper format if they're just hour strings
+    const formattedSlots = selectedSlots.map(slot => {
+      if (typeof slot === 'string') {
+        // If slot is just an hour string like "09"
+        const startTime = `${slot.padStart(2, '0')}:00`;
+        const endTime = `${(parseInt(slot) + 1).toString().padStart(2, '0')}:00`;
+        return { startTime, endTime };
+      }
+      return slot; // Already in correct format
+    });
+
     // Validate that all slots are available
+    const bookingDate = new Date(selectedDate);
+    bookingDate.setHours(0, 0, 0, 0);
+
     const existingBookings = await prisma.booking.findMany({
       where: {
         courtId,
-        bookingDate: new Date(selectedDate),
+        bookingDate,
         status: { in: ['CONFIRMED', 'PENDING'] },
-        startTime: { in: selectedSlots.map(slot => slot.startTime) }
+        startTime: { in: formattedSlots.map(slot => slot.startTime) }
       }
     });
 
@@ -51,16 +73,16 @@ router.post('/', auth, async (req, res) => {
     }
 
     // Create bookings for each selected slot
-    const bookingPromises = selectedSlots.map(slot => 
+    const bookingPromises = formattedSlots.map(slot => 
       prisma.booking.create({
         data: {
           userId: req.user.userId,
           facilityId,
           courtId,
-          bookingDate: new Date(selectedDate),
+          bookingDate,
           startTime: slot.startTime,
           endTime: slot.endTime,
-          totalAmount: totalAmount / selectedSlots.length,
+          totalAmount: totalAmount / formattedSlots.length,
           status: 'PENDING'
         }
       })

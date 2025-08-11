@@ -40,7 +40,11 @@ router.post('/', auth, async (req, res) => {
       where: { id: facilityId }
     });
 
-    if (!facility || facility.ownerId !== req.user.userId) {
+    if (!facility) {
+      return res.status(404).json({ error: true, message: 'Facility not found' });
+    }
+
+    if (facility.ownerId !== req.user.userId) {
       return res.status(403).json({ error: true, message: 'Not authorized to add courts to this facility' });
     }
 
@@ -48,7 +52,7 @@ router.post('/', auth, async (req, res) => {
     const existingCourt = await prisma.court.findFirst({
       where: {
         facilityId,
-        name,
+        name: name.trim(),
         isActive: true
       }
     });

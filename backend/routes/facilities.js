@@ -152,20 +152,27 @@ router.get('/:id', async (req, res) => {
           select: { fullName: true, email: true }
         },
         courts: {
-          where: { isActive: true }
+          where: { isActive: true },
+          orderBy: { name: 'asc' }
         },
         reviews: {
           include: {
             user: {
               select: { fullName: true, avatar: true }
             }
-          }
+          },
+          orderBy: { createdAt: 'desc' }
         }
       }
     });
 
     if (!facility) {
       return res.status(404).json({ error: true, message: 'Facility not found' });
+    }
+
+    // Only show approved facilities to users
+    if (facility.status !== 'APPROVED') {
+      return res.status(404).json({ error: true, message: 'Facility not available' });
     }
 
     res.json({ success: true, facility });
