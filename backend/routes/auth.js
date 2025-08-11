@@ -65,23 +65,43 @@ router.post('/signup', [
       }
     });
 
-    // For development, log the OTP instead of sending email
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`OTP for ${email}: ${otp}`);
-    } else {
-      await sendOTPEmail(email, otp, fullName);
-    }
+    // Send OTP email with better error handling
+    try {
+      const emailResult = await sendOTPEmail(email, otp, fullName);
+      
+      const message = emailResult.mode === 'development' || emailResult.mode === 'development-fallback'
+        ? 'User registered successfully. Check console for OTP (development mode)'
+        : 'User registered successfully. Please verify your email with OTP';
 
-    res.status(201).json({
-      success: true,
-      message: 'User registered successfully. Please verify your email with OTP',
-      user: {
-        id: user.id,
-        email: user.email,
-        fullName: user.fullName,
-        role: user.role
-      }
-    });
+      res.status(201).json({
+        success: true,
+        message,
+        user: {
+          id: user.id,
+          email: user.email,
+          fullName: user.fullName,
+          role: user.role
+        },
+        emailSent: emailResult.success,
+        emailMode: emailResult.mode
+      });
+    } catch (emailError) {
+      console.error('Email sending failed:', emailError);
+      
+      // Still return success but indicate email issue
+      res.status(201).json({
+        success: true,
+        message: 'User registered successfully, but email sending failed. Please contact support.',
+        user: {
+          id: user.id,
+          email: user.email,
+          fullName: user.fullName,
+          role: user.role
+        },
+        emailSent: false,
+        emailError: emailError.message
+      });
+    }
   } catch (error) {
     console.error('Register error:', error);
     res.status(500).json({ error: true, message: 'Registration failed' });
