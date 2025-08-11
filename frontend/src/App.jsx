@@ -3,6 +3,7 @@ import { useAuth } from './contexts/AuthContext'
 import Navbar from './components/common/Navbar'
 import Footer from './components/common/Footer'
 import LoadingSpinner from './components/common/LoadingSpinner'
+import ErrorBoundary from './components/common/ErrorBoundary'
 
 // Auth Pages
 import Login from './pages/auth/Login'
@@ -43,7 +44,11 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
     return <Navigate to="/" replace />
   }
   
-  return children
+  return (
+    <ErrorBoundary>
+      {children}
+    </ErrorBoundary>
+  )
 }
 
 function App() {
@@ -54,111 +59,113 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      <main className="min-h-[calc(100vh-140px)]">
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/login" element={!user ? <Login /> : <Navigate to="/" replace />} />
-          <Route path="/signup" element={!user ? <Signup /> : <Navigate to="/" replace />} />
-          <Route path="/verify-otp" element={!user ? <OTPVerification /> : <Navigate to="/" replace />} />
-          
-          {/* Protected Routes */}
-          <Route path="/" element={
-            <ProtectedRoute>
-              {user?.role === 'ADMIN' ? <AdminDashboard /> : 
-               user?.role === 'FACILITY_OWNER' ? <OwnerDashboard /> : 
-               <Home />}
-            </ProtectedRoute>
-          } />
-          
-          {/* User Routes */}
-          <Route path="/venues" element={
-            <ProtectedRoute allowedRoles={['USER']}>
-              <Venues />
-            </ProtectedRoute>
-          } />
-          <Route path="/venues/:id" element={
-            <ProtectedRoute allowedRoles={['USER']}>
-              <VenueDetail />
-            </ProtectedRoute>
-          } />
-          <Route path="/booking/confirm" element={
-            <ProtectedRoute allowedRoles={['USER']}>
-              <BookingConfirmation />
-            </ProtectedRoute>
-          } />
-          <Route path="/payment" element={
-            <ProtectedRoute allowedRoles={['USER']}>
-              <Payment />
-            </ProtectedRoute>
-          } />
-          <Route path="/my-bookings" element={
-            <ProtectedRoute allowedRoles={['USER']}>
-              <MyBookings />
-            </ProtectedRoute>
-          } />
-          <Route path="/profile" element={
-            <ProtectedRoute allowedRoles={['USER']}>
-              <UserProfile />
-            </ProtectedRoute>
-          } />
-          
-          {/* Facility Owner Routes */}
-          <Route path="/owner/dashboard" element={
-            <ProtectedRoute allowedRoles={['FACILITY_OWNER']}>
-              <OwnerDashboard />
-            </ProtectedRoute>
-          } />
-          <Route path="/owner/facilities" element={
-            <ProtectedRoute allowedRoles={['FACILITY_OWNER']}>
-              <FacilityManagement />
-            </ProtectedRoute>
-          } />
-          <Route path="/owner/courts" element={
-            <ProtectedRoute allowedRoles={['FACILITY_OWNER']}>
-              <CourtManagement />
-            </ProtectedRoute>
-          } />
-          <Route path="/owner/bookings" element={
-            <ProtectedRoute allowedRoles={['FACILITY_OWNER']}>
-              <OwnerBookings />
-            </ProtectedRoute>
-          } />
-          <Route path="/owner/profile" element={
-            <ProtectedRoute allowedRoles={['FACILITY_OWNER']}>
-              <OwnerProfile />
-            </ProtectedRoute>
-          } />
-          
-          {/* Admin Routes */}
-          <Route path="/admin/dashboard" element={
-            <ProtectedRoute allowedRoles={['ADMIN']}>
-              <AdminDashboard />
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/facilities" element={
-            <ProtectedRoute allowedRoles={['ADMIN']}>
-              <FacilityApproval />
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/users" element={
-            <ProtectedRoute allowedRoles={['ADMIN']}>
-              <UserManagement />
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/profile" element={
-            <ProtectedRoute allowedRoles={['ADMIN']}>
-              <AdminProfile />
-            </ProtectedRoute>
-          } />
-          
-          {/* Catch all route */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </main>
-      <Footer />
-    </div>
+    <ErrorBoundary>
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <main className="min-h-[calc(100vh-140px)]">
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/login" element={!user ? <Login /> : <Navigate to="/" replace />} />
+            <Route path="/signup" element={!user ? <Signup /> : <Navigate to="/" replace />} />
+            <Route path="/verify-otp" element={!user ? <OTPVerification /> : <Navigate to="/" replace />} />
+            
+            {/* Protected Routes */}
+            <Route path="/" element={
+              <ProtectedRoute>
+                {user?.role === 'ADMIN' ? <AdminDashboard /> : 
+                 user?.role === 'FACILITY_OWNER' ? <OwnerDashboard /> : 
+                 <Home />}
+              </ProtectedRoute>
+            } />
+            
+            {/* User Routes */}
+            <Route path="/venues" element={
+              <ProtectedRoute allowedRoles={['USER']}>
+                <Venues />
+              </ProtectedRoute>
+            } />
+            <Route path="/venues/:id" element={
+              <ProtectedRoute allowedRoles={['USER']}>
+                <VenueDetail />
+              </ProtectedRoute>
+            } />
+            <Route path="/booking/confirm" element={
+              <ProtectedRoute allowedRoles={['USER']}>
+                <BookingConfirmation />
+              </ProtectedRoute>
+            } />
+            <Route path="/payment" element={
+              <ProtectedRoute allowedRoles={['USER']}>
+                <Payment />
+              </ProtectedRoute>
+            } />
+            <Route path="/my-bookings" element={
+              <ProtectedRoute allowedRoles={['USER']}>
+                <MyBookings />
+              </ProtectedRoute>
+            } />
+            <Route path="/profile" element={
+              <ProtectedRoute allowedRoles={['USER']}>
+                <UserProfile />
+              </ProtectedRoute>
+            } />
+            
+            {/* Facility Owner Routes */}
+            <Route path="/owner/dashboard" element={
+              <ProtectedRoute allowedRoles={['FACILITY_OWNER']}>
+                <OwnerDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/owner/facilities" element={
+              <ProtectedRoute allowedRoles={['FACILITY_OWNER']}>
+                <FacilityManagement />
+              </ProtectedRoute>
+            } />
+            <Route path="/owner/courts" element={
+              <ProtectedRoute allowedRoles={['FACILITY_OWNER']}>
+                <CourtManagement />
+              </ProtectedRoute>
+            } />
+            <Route path="/owner/bookings" element={
+              <ProtectedRoute allowedRoles={['FACILITY_OWNER']}>
+                <OwnerBookings />
+              </ProtectedRoute>
+            } />
+            <Route path="/owner/profile" element={
+              <ProtectedRoute allowedRoles={['FACILITY_OWNER']}>
+                <OwnerProfile />
+              </ProtectedRoute>
+            } />
+            
+            {/* Admin Routes */}
+            <Route path="/admin/dashboard" element={
+              <ProtectedRoute allowedRoles={['ADMIN']}>
+                <AdminDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/facilities" element={
+              <ProtectedRoute allowedRoles={['ADMIN']}>
+                <FacilityApproval />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/users" element={
+              <ProtectedRoute allowedRoles={['ADMIN']}>
+                <UserManagement />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/profile" element={
+              <ProtectedRoute allowedRoles={['ADMIN']}>
+                <AdminProfile />
+              </ProtectedRoute>
+            } />
+            
+            {/* Catch all route */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
+        <Footer />
+      </div>
+    </ErrorBoundary>
   )
 }
 

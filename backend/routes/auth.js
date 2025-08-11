@@ -16,8 +16,8 @@ const generateToken = (userId) => {
   });
 };
 
-// Register
-router.post('/register', [
+// Register (fix the route name to match frontend)
+router.post('/signup', [
   body('email').isEmail().normalizeEmail(),
   body('password').isLength({ min: 6 }),
   body('fullName').isLength({ min: 2 }),
@@ -54,7 +54,7 @@ router.post('/register', [
 
     // Generate and send OTP
     const otp = generateOTP();
-    const expiresAt = new Date(Date.now() + parseInt(process.env.OTP_EXPIRE_MINUTES) * 60 * 1000);
+    const expiresAt = new Date(Date.now() + parseInt(process.env.OTP_EXPIRE_MINUTES || 10) * 60 * 1000);
 
     await prisma.otpVerification.create({
       data: {
@@ -65,12 +65,22 @@ router.post('/register', [
       }
     });
 
-    await sendOTPEmail(email, otp, fullName);
+    // For development, log the OTP instead of sending email
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`OTP for ${email}: ${otp}`);
+    } else {
+      await sendOTPEmail(email, otp, fullName);
+    }
 
     res.status(201).json({
       success: true,
       message: 'User registered successfully. Please verify your email with OTP',
-      userId: user.id
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role
+      }
     });
   } catch (error) {
     console.error('Register error:', error);
@@ -78,9 +88,9 @@ router.post('/register', [
   }
 });
 
-// Verify OTP
+// Verify OTP (fix to work with email instead of userId)
 router.post('/verify-otp', [
-  body('userId').notEmpty(),
+  body('email').isEmail().normalizeEmail(),
   body('otp').isLength({ min: 6, max: 6 })
 ], async (req, res) => {
   try {
@@ -89,11 +99,17 @@ router.post('/verify-otp', [
       return res.status(400).json({ error: true, errors: errors.array() });
     }
 
-    const { userId, otp } = req.body;
+    const { email, otp } = req.body;
+
+    // Find user by email
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return res.status(404).json({ error: true, message: 'User not found' });
+    }
 
     const otpRecord = await prisma.otpVerification.findFirst({
       where: {
-        userId,
+        userId: user.id,
         otp,
         isUsed: false,
         expiresAt: { gt: new Date() }
@@ -111,14 +127,24 @@ router.post('/verify-otp', [
         data: { isUsed: true }
       }),
       prisma.user.update({
-        where: { id: userId },
+        where: { id: user.id },
         data: { isVerified: true }
       })
     ]);
 
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { id: true, email: true, fullName: true, role: true, avatar: true }
+    const updatedUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { 
+        id: true, 
+        email: true, 
+        fullName: true, 
+        role: true, 
+        avatar: true,
+        phone: true,
+        isVerified: true,
+        isActive: true,
+        createdAt: true
+      }
     });
 
     const token = generateToken(user.id);
@@ -127,7 +153,7 @@ router.post('/verify-otp', [
       success: true,
       message: 'Email verified successfully',
       token,
-      user
+      user: updatedUser
     });
   } catch (error) {
     console.error('OTP verification error:', error);
@@ -225,6 +251,18 @@ router.post('/resend-otp', [
     console.error('Resend OTP error:', error);
     res.status(500).json({ error: true, message: 'Failed to resend OTP' });
   }
+});
+
+// Keep the existing /register route for backward compatibility
+router.post('/register', [
+  body('email').isEmail().normalizeEmail(),
+  body('password').isLength({ min: 6 }),
+  body('fullName').isLength({ min: 2 }),
+  body('role').isIn(['USER', 'FACILITY_OWNER'])
+], async (req, res) => {
+  // Redirect to signup endpoint
+  req.url = '/signup';
+  return router.handle(req, res);
 });
 
 module.exports = router;

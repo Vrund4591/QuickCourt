@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../utils/api'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
-import { PlusIcon, PencilIcon, EyeIcon } from '@heroicons/react/24/outline'
+import { PlusIcon, PencilIcon, EyeIcon, BuildingOfficeIcon } from '@heroicons/react/24/outline'
 import { VENUE_TYPES, AMENITIES } from '../../utils/constants'
 import toast from 'react-hot-toast'
 
@@ -18,12 +18,14 @@ const FacilityManagement = () => {
   })
   const queryClient = useQueryClient()
 
-  const { data: facilities, isLoading } = useQuery({
+  const { data: facilities, isLoading, error } = useQuery({
     queryKey: ['owner-facilities'],
     queryFn: async () => {
-      const response = await api.get('/owner/facilities')
-      return response.data.facilities
-    }
+      const response = await api.get('/facilities/owner')
+      return response.data.facilities || []
+    },
+    retry: 1,
+    staleTime: 1000 * 60 * 5
   })
 
   const createFacilityMutation = useMutation({
@@ -51,6 +53,12 @@ const FacilityManagement = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    
+    if (!formData.name.trim() || !formData.description.trim() || !formData.address.trim()) {
+      toast.error('Please fill in all required fields')
+      return
+    }
+
     createFacilityMutation.mutate(formData)
   }
 
@@ -78,6 +86,25 @@ const FacilityManagement = () => {
 
   if (isLoading) return <LoadingSpinner />
 
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Error Loading Facilities</h2>
+          <p className="text-gray-600 mb-4">
+            {error.response?.data?.message || 'Failed to load facilities'}
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-8">
@@ -102,7 +129,7 @@ const FacilityManagement = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Facility Name
+                  Facility Name *
                 </label>
                 <input
                   type="text"
@@ -110,6 +137,7 @@ const FacilityManagement = () => {
                   value={formData.name}
                   onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter facility name"
                 />
               </div>
 
@@ -131,7 +159,7 @@ const FacilityManagement = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Address
+                Address *
               </label>
               <textarea
                 required
@@ -139,12 +167,13 @@ const FacilityManagement = () => {
                 onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
                 rows={2}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter complete address"
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Description
+                Description *
               </label>
               <textarea
                 required
@@ -152,6 +181,7 @@ const FacilityManagement = () => {
                 onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                 rows={3}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Describe your facility"
               />
             </div>
 
@@ -200,14 +230,15 @@ const FacilityManagement = () => {
           <h2 className="text-lg font-semibold">Your Facilities</h2>
         </div>
         <div className="p-6">
-          {facilities?.length === 0 ? (
+          {!facilities || facilities.length === 0 ? (
             <div className="text-center py-8">
               <BuildingOfficeIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600">No facilities yet. Add your first facility!</p>
+              <p className="text-gray-600 mb-2">No facilities yet. Add your first facility!</p>
+              <p className="text-sm text-gray-500">Create a facility to start managing courts and bookings.</p>
             </div>
           ) : (
             <div className="grid gap-6">
-              {facilities?.map((facility) => (
+              {facilities.map((facility) => (
                 <div key={facility.id} className="border border-gray-200 rounded-lg p-6">
                   <div className="flex justify-between items-start mb-4">
                     <div>
@@ -225,16 +256,42 @@ const FacilityManagement = () => {
                     <div className="flex items-center space-x-4 text-sm text-gray-600">
                       <span>{facility.venueType}</span>
                       <span>{facility.courts?.length || 0} Courts</span>
+                      {facility.amenities && facility.amenities.length > 0 && (
+                        <span>{facility.amenities.length} Amenities</span>
+                      )}
                     </div>
                     <div className="flex space-x-2">
-                      <button className="p-2 text-gray-600 hover:text-blue-600 transition-colors">
+                      <button 
+                        className="p-2 text-gray-600 hover:text-blue-600 transition-colors"
+                        title="View Details"
+                      >
                         <EyeIcon className="h-5 w-5" />
                       </button>
-                      <button className="p-2 text-gray-600 hover:text-blue-600 transition-colors">
+                      <button 
+                        className="p-2 text-gray-600 hover:text-blue-600 transition-colors"
+                        title="Edit Facility"
+                      >
                         <PencilIcon className="h-5 w-5" />
                       </button>
                     </div>
                   </div>
+
+                  {/* Status Messages */}
+                  {facility.status === 'PENDING' && (
+                    <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <p className="text-sm text-yellow-800">
+                        Your facility is pending approval. You'll be notified once it's reviewed.
+                      </p>
+                    </div>
+                  )}
+                  
+                  {facility.status === 'REJECTED' && (
+                    <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <p className="text-sm text-red-800">
+                        Your facility was rejected. Please contact support for more information.
+                      </p>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

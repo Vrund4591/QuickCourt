@@ -9,15 +9,35 @@ import {
 } from '@heroicons/react/24/outline'
 
 const OwnerDashboard = () => {
-  const { data: dashboardData, isLoading } = useQuery({
+  const { data: dashboardData, isLoading, error } = useQuery({
     queryKey: ['owner-dashboard'],
     queryFn: async () => {
       const response = await api.get('/owner/dashboard')
       return response.data
-    }
+    },
+    retry: 1
   })
 
   if (isLoading) return <LoadingSpinner />
+
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Error Loading Dashboard</h2>
+          <p className="text-gray-600 mb-4">
+            {error.response?.data?.message || 'Failed to load dashboard data'}
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   const stats = dashboardData?.stats || {}
   const recentBookings = dashboardData?.recentBookings || []
@@ -87,6 +107,7 @@ const OwnerDashboard = () => {
                 <tr className="border-b border-gray-200">
                   <th className="text-left py-3 px-4">Customer</th>
                   <th className="text-left py-3 px-4">Facility</th>
+                  <th className="text-left py-3 px-4">Court</th>
                   <th className="text-left py-3 px-4">Date</th>
                   <th className="text-left py-3 px-4">Time</th>
                   <th className="text-left py-3 px-4">Amount</th>
@@ -96,11 +117,12 @@ const OwnerDashboard = () => {
               <tbody>
                 {recentBookings.map((booking) => (
                   <tr key={booking.id} className="border-b border-gray-100">
-                    <td className="py-3 px-4">{booking.user?.fullName}</td>
-                    <td className="py-3 px-4">{booking.facility?.name}</td>
+                    <td className="py-3 px-4">{booking.user?.fullName || 'N/A'}</td>
+                    <td className="py-3 px-4">{booking.facility?.name || 'N/A'}</td>
+                    <td className="py-3 px-4">{booking.court?.name || 'N/A'}</td>
                     <td className="py-3 px-4">{new Date(booking.bookingDate).toLocaleDateString()}</td>
                     <td className="py-3 px-4">{booking.startTime} - {booking.endTime}</td>
-                    <td className="py-3 px-4">₹{booking.totalAmount}</td>
+                    <td className="py-3 px-4">₹{booking.totalAmount || 0}</td>
                     <td className="py-3 px-4">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                         booking.status === 'CONFIRMED' ? 'bg-green-100 text-green-800' :

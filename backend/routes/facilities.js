@@ -5,6 +5,37 @@ const auth = require('../middleware/auth');
 const router = express.Router();
 const prisma = new PrismaClient();
 
+// Get owner's facilities - MUST be before /:id route
+router.get('/owner', auth, async (req, res) => {
+  try {
+    if (req.user.role !== 'FACILITY_OWNER') {
+      return res.status(403).json({ error: true, message: 'Only facility owners can access this' });
+    }
+
+    const facilities = await prisma.facility.findMany({
+      where: { ownerId: req.user.userId },
+      include: {
+        courts: {
+          where: { isActive: true }
+        },
+        _count: {
+          select: {
+            bookings: {
+              where: { status: 'CONFIRMED' }
+            }
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    res.json({ success: true, facilities });
+  } catch (error) {
+    console.error('Get owner facilities error:', error);
+    res.status(500).json({ error: true, message: 'Failed to get facilities' });
+  }
+});
+
 // Get all approved facilities with enhanced filtering
 router.get('/', async (req, res) => {
   try {
@@ -153,17 +184,31 @@ router.post('/', auth, async (req, res) => {
 
     const { name, description, address, location, venueType, images, amenities } = req.body;
 
+    // Validate required fields
+    if (!name || !description || !address || !venueType) {
+      return res.status(400).json({ 
+        error: true, 
+        message: 'Name, description, address, and venue type are required' 
+      });
+    }
+
     const facility = await prisma.facility.create({
       data: {
-        name,
-        description,
-        address,
-        location,
+        name: name.trim(),
+        description: description.trim(),
+        address: address.trim(),
+        location: location || address.trim(),
         venueType,
         ownerId: req.user.userId,
-        images,
-        amenities,
-        status: 'PENDING'
+        images: images || [],
+        amenities: amenities || [],
+        status: 'PENDING',
+        isActive: true
+      },
+      include: {
+        courts: {
+          where: { isActive: true }
+        }
       }
     });
 

@@ -13,76 +13,38 @@ const ownerAuth = (req, res, next) => {
   next();
 };
 
-// Get owner dashboard analytics
+// Get dashboard stats
 router.get('/dashboard', auth, ownerAuth, async (req, res) => {
   try {
-    const ownerId = req.user.userId;
-
-    // Get basic counts
-    const [totalFacilities, totalCourts, totalBookings, totalEarnings] = await Promise.all([
-      prisma.facility.count({ where: { ownerId } }),
-      prisma.court.count({ 
-        where: { 
-          facility: { ownerId },
-          isActive: true 
-        } 
+    const [facilities, courts] = await Promise.all([
+      prisma.facility.findMany({
+        where: { ownerId: req.user.userId }
       }),
-      prisma.booking.count({ 
-        where: { 
-          facility: { ownerId },
-          status: 'CONFIRMED'
-        } 
-      }),
-      prisma.booking.aggregate({
-        where: { 
-          facility: { ownerId },
-          status: 'CONFIRMED'
-        },
-        _sum: { totalAmount: true }
+      prisma.court.findMany({
+        where: {
+          facility: {
+            ownerId: req.user.userId
+          },
+          isActive: true
+        }
       })
     ]);
-
-    // Get booking trends (last 30 days)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    const bookingTrends = await prisma.booking.findMany({
-      where: {
-        facility: { ownerId },
-        createdAt: { gte: thirtyDaysAgo },
-        status: 'CONFIRMED'
-      },
-      select: {
-        createdAt: true,
-        totalAmount: true
-      }
-    });
-
-    // Get peak booking hours
-    const peakHours = await prisma.booking.groupBy({
-      by: ['startTime'],
-      where: {
-        facility: { ownerId },
-        status: 'CONFIRMED'
-      },
-      _count: true,
-      orderBy: { _count: { startTime: 'desc' } },
-      take: 10
-    });
 
     // Get recent bookings
     const recentBookings = await prisma.booking.findMany({
       where: {
-        facility: { ownerId }
+        facility: {
+          ownerId: req.user.userId
+        }
       },
       include: {
         user: {
-          select: { fullName: true, email: true }
-        },
-        court: {
-          select: { name: true, sportType: true }
+          select: { fullName: true }
         },
         facility: {
+          select: { name: true }
+        },
+        court: {
           select: { name: true }
         }
       },
@@ -90,17 +52,36 @@ router.get('/dashboard', auth, ownerAuth, async (req, res) => {
       take: 10
     });
 
-    res.json({
-      success: true,
-      dashboard: {
-        totalFacilities,
-        totalCourts,
-        totalBookings,
-        totalEarnings: totalEarnings._sum.totalAmount || 0,
-        bookingTrends,
-        peakHours,
-        recentBookings
+    // Calculate earnings for current month
+    const currentMonth = new Date();
+    currentMonth.setDate(1);
+    currentMonth.setHours(0, 0, 0, 0);
+
+    const monthlyBookings = await prisma.booking.findMany({
+      where: {
+        facility: {
+          ownerId: req.user.userId
+        },
+        status: 'CONFIRMED',
+        createdAt: {
+          gte: currentMonth
+        }
       }
+    });
+
+    const monthlyEarnings = monthlyBookings.reduce((sum, booking) => sum + (booking.totalAmount || 0), 0);
+
+    const stats = {
+      totalFacilities: facilities.length,
+      totalBookings: recentBookings.length,
+      activeCourts: courts.length,
+      monthlyEarnings
+    };
+
+    res.json({ 
+      success: true, 
+      stats,
+      recentBookings
     });
   } catch (error) {
     console.error('Get owner dashboard error:', error);
@@ -108,7 +89,7 @@ router.get('/dashboard', auth, ownerAuth, async (req, res) => {
   }
 });
 
-// Get owner facilities
+// Get owner's facilities
 router.get('/facilities', auth, ownerAuth, async (req, res) => {
   try {
     const facilities = await prisma.facility.findMany({
