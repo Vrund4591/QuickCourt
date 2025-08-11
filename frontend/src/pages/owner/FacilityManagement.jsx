@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../utils/api'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
+import ImageUpload from '../../components/common/ImageUpload'
 import { PlusIcon, PencilIcon, EyeIcon, BuildingOfficeIcon } from '@heroicons/react/24/outline'
 import { VENUE_TYPES, AMENITIES } from '../../utils/constants'
 import toast from 'react-hot-toast'
@@ -14,7 +15,8 @@ const FacilityManagement = () => {
     address: '',
     location: '',
     venueType: 'INDOOR',
-    amenities: []
+    amenities: [],
+    images: []
   })
   const queryClient = useQueryClient()
 
@@ -69,6 +71,10 @@ const FacilityManagement = () => {
         ? prev.amenities.filter(a => a !== amenity)
         : [...prev.amenities, amenity]
     }))
+  }
+
+  const handleImagesChange = (newImages) => {
+    setFormData(prev => ({ ...prev, images: newImages }))
   }
 
   const getStatusColor = (status) => {
@@ -184,6 +190,14 @@ const FacilityManagement = () => {
                 placeholder="Describe your facility"
               />
             </div>
+
+            {/* Image Upload Section */}
+            <ImageUpload
+              images={formData.images}
+              onImagesChange={handleImagesChange}
+              multiple={true}
+              maxImages={10}
+            />
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">

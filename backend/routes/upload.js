@@ -29,9 +29,17 @@ const upload = multer({
 // Upload single image
 router.post('/single', auth, upload.single('image'), async (req, res) => {
   try {
+    console.log('Upload request received:', req.file ? 'File present' : 'No file');
+    
     if (!req.file) {
       return res.status(400).json({ error: true, message: 'No image file provided' });
     }
+
+    console.log('File details:', {
+      originalname: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size
+    });
 
     // Convert buffer to base64
     const base64String = req.file.buffer.toString('base64');
@@ -47,6 +55,8 @@ router.post('/single', auth, upload.single('image'), async (req, res) => {
       ]
     });
 
+    console.log('Cloudinary upload successful:', result.secure_url);
+
     res.json({ 
       success: true, 
       imageUrl: result.secure_url,
@@ -54,7 +64,11 @@ router.post('/single', auth, upload.single('image'), async (req, res) => {
     });
   } catch (error) {
     console.error('Upload error:', error);
-    res.status(500).json({ error: true, message: 'Failed to upload image' });
+    res.status(500).json({ 
+      error: true, 
+      message: 'Failed to upload image',
+      details: error.message 
+    });
   }
 });
 

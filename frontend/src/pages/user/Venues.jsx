@@ -238,6 +238,12 @@ const Venues = () => {
                         alt={facility.name}
                         className="w-full h-full object-cover"
                       />
+                    ) : facility.courts && facility.courts[0]?.images && facility.courts[0].images[0] ? (
+                      <img
+                        src={facility.courts[0].images[0]}
+                        alt={facility.name}
+                        className="w-full h-full object-cover"
+                      />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-gray-500">
                         No image available

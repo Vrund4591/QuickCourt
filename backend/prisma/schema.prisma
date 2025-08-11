@@ -52,6 +52,7 @@ model User {
   password  String
   fullName  String
   avatar    String?
+  phone     String?
   role      Role     @default(USER)
   isVerified Boolean @default(false)
   isActive  Boolean  @default(true)
@@ -110,6 +111,7 @@ model Court {
   name         String
   sportType    SportType
   pricePerHour Float
+  images        String[]
   facilityId   String
   isActive     Boolean   @default(true)
   createdAt    DateTime  @default(now())
@@ -135,7 +137,6 @@ model TimeSlot {
 
   // Relations
   court   Court     @relation(fields: [courtId], references: [id], onDelete: Cascade)
-  booking Booking?
 
   @@unique([courtId, date, startTime, endTime])
   @@map("time_slots")
@@ -146,7 +147,6 @@ model Booking {
   userId        String
   facilityId    String
   courtId       String
-  timeSlotId    String        @unique
   bookingDate   DateTime
   startTime     String
   endTime       String
@@ -161,7 +161,6 @@ model Booking {
   user      User     @relation(fields: [userId], references: [id])
   facility  Facility @relation(fields: [facilityId], references: [id])
   court     Court    @relation(fields: [courtId], references: [id])
-  timeSlot  TimeSlot @relation(fields: [timeSlotId], references: [id])
 
   @@map("bookings")
 }

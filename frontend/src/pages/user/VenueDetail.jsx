@@ -195,6 +195,17 @@ const VenueDetail = () => {
                           : 'border-gray-200 hover:border-gray-300'
                       }`}
                     >
+                      {/* Court Image */}
+                      {court.images && court.images[0] && (
+                        <div className="mb-3">
+                          <img
+                            src={court.images[0]}
+                            alt={court.name}
+                            className="w-full h-24 object-cover rounded-md"
+                          />
+                        </div>
+                      )}
+                      
                       <div className="flex justify-between items-start">
                         <div>
                           <h3 className="font-semibold">{court.name}</h3>

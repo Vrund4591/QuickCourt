@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../utils/api'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
+import ImageUpload from '../../components/common/ImageUpload'
 import { 
   PlusIcon, 
   PencilIcon, 
@@ -19,7 +20,8 @@ const CourtManagement = () => {
     name: '',
     sportType: 'BADMINTON',
     pricePerHour: '',
-    facilityId: ''
+    facilityId: '',
+    images: []
   })
   const queryClient = useQueryClient()
 
@@ -45,23 +47,35 @@ const CourtManagement = () => {
   // Create court mutation
   const createCourtMutation = useMutation({
     mutationFn: async (courtData) => {
-      console.log('Creating court with data:', courtData) // Debug log
+      console.log('Creating court with data:', courtData)
       const response = await api.post('/courts', courtData)
-      console.log('Court creation response:', response.data) // Debug log
+      console.log('Court creation response:', response.data)
       return response.data
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries(['owner-courts'])
       queryClient.invalidateQueries(['owner-facilities'])
-      // Also invalidate facility detail queries that might be cached
       queryClient.invalidateQueries(['facility'])
       toast.success('Court created successfully')
       setShowAddForm(false)
       resetForm()
     },
     onError: (error) => {
-      console.error('Court creation error:', error) // Debug log
-      toast.error(error.response?.data?.message || 'Failed to create court')
+      console.error('Court creation error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      })
+      
+      let errorMessage = 'Failed to create court'
+      
+      if (error.response?.data?.details?.includes('Unknown argument `images`')) {
+        errorMessage = 'Court created but images are not supported yet. Please run database migration first.'
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message
+      }
+      
+      toast.error(errorMessage)
     }
   })
 
@@ -102,7 +116,8 @@ const CourtManagement = () => {
       name: '',
       sportType: 'BADMINTON',
       pricePerHour: '',
-      facilityId: ''
+      facilityId: '',
+      images: []
     })
   }
 
@@ -118,7 +133,8 @@ const CourtManagement = () => {
       name: formData.name.trim(),
       sportType: formData.sportType,
       pricePerHour: parseFloat(formData.pricePerHour),
-      facilityId: formData.facilityId
+      facilityId: formData.facilityId,
+      images: formData.images
     }
 
     console.log('Submitting court data:', courtData) // Debug log
@@ -136,9 +152,14 @@ const CourtManagement = () => {
       name: court.name,
       sportType: court.sportType,
       pricePerHour: court.pricePerHour.toString(),
-      facilityId: court.facilityId
+      facilityId: court.facilityId,
+      images: court.images || []
     })
     setShowAddForm(true)
+  }
+
+  const handleImagesChange = (newImages) => {
+    setFormData(prev => ({ ...prev, images: newImages }))
   }
 
   const handleDelete = (courtId) => {
@@ -280,6 +301,14 @@ const CourtManagement = () => {
                 />
               </div>
             </div>
+
+            {/* Court Images */}
+            <ImageUpload
+              images={formData.images}
+              onImagesChange={handleImagesChange}
+              multiple={true}
+              maxImages={5}
+            />
 
             <div className="flex space-x-4">
               <button

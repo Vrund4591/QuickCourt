@@ -27,21 +27,16 @@ router.get('/profile', auth, async (req, res) => {
 // Update user profile
 router.put('/profile', auth, async (req, res) => {
   try {
-    const { fullName, avatar, phone } = req.body;
+    const { fullName, avatar } = req.body;
 
     // Validate input
     if (fullName && fullName.trim().length < 2) {
       return res.status(400).json({ error: true, message: 'Full name must be at least 2 characters' });
     }
 
-    if (phone && phone.trim() && !/^\+?[\d\s\-\(\)]{10,15}$/.test(phone.trim())) {
-      return res.status(400).json({ error: true, message: 'Invalid phone number format' });
-    }
-
     const updateData = {};
     if (fullName !== undefined) updateData.fullName = fullName.trim();
     if (avatar !== undefined) updateData.avatar = avatar;
-    if (phone !== undefined) updateData.phone = phone.trim();
 
     const user = await prisma.user.update({
       where: { id: req.user.userId },
@@ -52,7 +47,6 @@ router.put('/profile', auth, async (req, res) => {
         fullName: true, 
         role: true, 
         avatar: true, 
-        phone: true,
         isVerified: true,
         isActive: true,
         createdAt: true

@@ -160,7 +160,6 @@ router.post('/verify-otp', [
         fullName: true, 
         role: true, 
         avatar: true,
-        phone: true,
         isVerified: true,
         isActive: true,
         createdAt: true
@@ -285,4 +284,5 @@ router.post('/register', [
   return router.handle(req, res);
 });
 
+module.exports = router;
 module.exports = router;

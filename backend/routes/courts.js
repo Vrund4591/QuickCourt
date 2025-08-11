@@ -25,10 +25,20 @@ router.get('/facility/:facilityId', async (req, res) => {
 // Create court (for facility owners)
 router.post('/', auth, async (req, res) => {
   try {
-    const { name, sportType, pricePerHour, facilityId } = req.body;
+    const { name, sportType, pricePerHour, facilityId, images } = req.body;
+    
+    console.log('Court creation request:', {
+      name,
+      sportType,
+      pricePerHour,
+      facilityId,
+      imagesCount: images ? images.length : 0,
+      userId: req.user.userId
+    });
 
     // Validate required fields
     if (!name || !sportType || !pricePerHour || !facilityId) {
+      console.log('Validation failed - missing required fields');
       return res.status(400).json({ 
         error: true, 
         message: 'Name, sport type, price per hour, and facility ID are required' 
@@ -41,10 +51,12 @@ router.post('/', auth, async (req, res) => {
     });
 
     if (!facility) {
+      console.log('Facility not found:', facilityId);
       return res.status(404).json({ error: true, message: 'Facility not found' });
     }
 
     if (facility.ownerId !== req.user.userId) {
+      console.log('Unauthorized access - user:', req.user.userId, 'facility owner:', facility.ownerId);
       return res.status(403).json({ error: true, message: 'Not authorized to add courts to this facility' });
     }
 
@@ -58,20 +70,29 @@ router.post('/', auth, async (req, res) => {
     });
 
     if (existingCourt) {
+      console.log('Court name already exists:', name);
       return res.status(400).json({ 
         error: true, 
         message: 'A court with this name already exists in this facility' 
       });
     }
 
+    // Create court data object conditionally
+    const courtData = {
+      name: name.trim(),
+      sportType,
+      pricePerHour: parseFloat(pricePerHour),
+      facilityId,
+      isActive: true
+    };
+
+    // Only add images if the field exists in the schema
+    if (images && Array.isArray(images)) {
+      courtData.images = images;
+    }
+
     const court = await prisma.court.create({
-      data: {
-        name: name.trim(),
-        sportType,
-        pricePerHour: parseFloat(pricePerHour),
-        facilityId,
-        isActive: true
-      },
+      data: courtData,
       include: {
         facility: {
           select: { name: true }
@@ -79,17 +100,60 @@ router.post('/', auth, async (req, res) => {
       }
     });
 
+    console.log('Court created successfully:', court.id);
     res.status(201).json({ success: true, message: 'Court created successfully', court });
   } catch (error) {
     console.error('Create court error:', error);
-    res.status(500).json({ error: true, message: 'Failed to create court' });
+    
+    // Check if it's a schema validation error
+    if (error.message.includes('Unknown argument `images`')) {
+      // Retry without images field
+      try {
+        const { name, sportType, pricePerHour, facilityId } = req.body;
+        
+        const court = await prisma.court.create({
+          data: {
+            name: name.trim(),
+            sportType,
+            pricePerHour: parseFloat(pricePerHour),
+            facilityId,
+            isActive: true
+          },
+          include: {
+            facility: {
+              select: { name: true }
+            }
+          }
+        });
+
+        console.log('Court created successfully (without images):', court.id);
+        res.status(201).json({ 
+          success: true, 
+          message: 'Court created successfully (images will be supported after database update)', 
+          court 
+        });
+      } catch (retryError) {
+        console.error('Retry court creation error:', retryError);
+        res.status(500).json({ 
+          error: true, 
+          message: 'Failed to create court',
+          details: retryError.message 
+        });
+      }
+    } else {
+      res.status(500).json({ 
+        error: true, 
+        message: 'Failed to create court',
+        details: error.message 
+      });
+    }
   }
 });
 
 // Update court
 router.put('/:id', auth, async (req, res) => {
   try {
-    const { name, sportType, pricePerHour } = req.body;
+    const { name, sportType, pricePerHour, images } = req.body;
 
     // Get court with facility info
     const court = await prisma.court.findUnique({
@@ -128,6 +192,11 @@ router.put('/:id', auth, async (req, res) => {
     if (name !== undefined) updateData.name = name.trim();
     if (sportType !== undefined) updateData.sportType = sportType;
     if (pricePerHour !== undefined) updateData.pricePerHour = parseFloat(pricePerHour);
+    
+    // Only add images if the field exists in the schema
+    if (images !== undefined && Array.isArray(images)) {
+      updateData.images = images;
+    }
 
     const updatedCourt = await prisma.court.update({
       where: { id: req.params.id },
