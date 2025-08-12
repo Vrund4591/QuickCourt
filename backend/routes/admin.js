@@ -237,42 +237,174 @@ router.get('/users/:id', auth, admin, async (req, res) => {
 // Get dashboard stats (Admin only)
 router.get('/stats', auth, admin, async (req, res) => {
   try {
+    // Get total users count
     const totalUsers = await prisma.user.count();
+    
+    // Get active users
     const activeUsers = await prisma.user.count({
       where: { isActive: true }
     });
-    const adminCount = await prisma.user.count({
-      where: { role: 'ADMIN' }
+
+    // Get total facilities count
+    const totalFacilities = await prisma.facility.count();
+
+    // Get active facilities count
+    const activeFacilities = await prisma.facility.count({
+      where: { isActive: true }
     });
-    const ownerCount = await prisma.user.count({
-      where: { role: 'OWNER' }
+
+    // Get total bookings count
+    const totalBookings = await prisma.booking.count();
+
+    // Get pending bookings count
+    const pendingBookings = await prisma.booking.count({
+      where: { status: 'PENDING' }
     });
-    const userCount = await prisma.user.count({
-      where: { role: 'USER' }
+
+    // Get confirmed bookings count
+    const confirmedBookings = await prisma.booking.count({
+      where: { status: 'CONFIRMED' }
     });
+
+    // Get completed bookings count
+    const completedBookings = await prisma.booking.count({
+      where: { status: 'COMPLETED' }
+    });
+
+    // Get cancelled bookings count
+    const cancelledBookings = await prisma.booking.count({
+      where: { status: 'CANCELLED' }
+    });
+
+    // Get recent registrations (last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     
-    // Get recent users (last 7 days)
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const recentUsers = await prisma.user.count({
+    const recentRegistrations = await prisma.user.count({
       where: {
         createdAt: {
-          gte: sevenDaysAgo
+          gte: thirtyDaysAgo
         }
       }
     });
 
-    res.json({
+    // Get user role counts
+    const adminCount = await prisma.user.count({
+      where: { role: 'ADMIN' }
+    });
+
+    const ownerCount = await prisma.user.count({
+      where: { role: 'FACILITY_OWNER' }
+    });
+
+    const userCount = await prisma.user.count({
+      where: { role: 'USER' }
+    });
+
+    // Get monthly user registration data for chart
+    const monthlyStats = [];
+    for (let i = 11; i >= 0; i--) {
+      const startDate = new Date();
+      startDate.setMonth(startDate.getMonth() - i);
+      startDate.setDate(1);
+      
+      const endDate = new Date();
+      endDate.setMonth(endDate.getMonth() - i + 1);
+      endDate.setDate(0);
+
+      const count = await prisma.user.count({
+        where: {
+          createdAt: {
+            gte: startDate,
+            lte: endDate
+          }
+        }
+      });
+
+      monthlyStats.push({
+        month: startDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+        users: count
+      });
+    }
+
+    // Get top facilities by booking count
+    const topFacilities = await prisma.facility.findMany({
+      include: {
+        _count: {
+          select: {
+            bookings: true
+          }
+        },
+        reviews: {
+          select: {
+            rating: true
+          }
+        }
+      },
+      orderBy: {
+        bookings: {
+          _count: 'desc'
+        }
+      },
+      take: 5
+    });
+
+    // Process top facilities data
+    const topFacilitiesData = topFacilities.map(facility => ({
+      name: facility.name,
+      bookings: facility._count.bookings,
+      rating: facility.reviews.length > 0 
+        ? (facility.reviews.reduce((sum, review) => sum + review.rating, 0) / facility.reviews.length).toFixed(1)
+        : '0.0'
+    }));
+
+    // Get recent users (last 10)
+    const recentUsers = await prisma.user.findMany({
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        role: true,
+        isActive: true,
+        createdAt: true
+      },
+      orderBy: {
+        createdAt: 'desc'
+      },
+      take: 10
+    });
+
+    const stats = {
       totalUsers,
       activeUsers,
       inactiveUsers: totalUsers - activeUsers,
       adminCount,
       ownerCount,
       userCount,
-      recentUsers
-    });
+      totalFacilities,
+      activeFacilities,
+      inactiveFacilities: totalFacilities - activeFacilities,
+      totalBookings,
+      pendingBookings,
+      confirmedBookings,
+      completedBookings,
+      cancelledBookings,
+      recentRegistrations,
+      monthlyStats,
+      topFacilities: topFacilitiesData,
+      recentUsers: recentUsers.map(user => ({
+        name: user.fullName,
+        email: user.email,
+        role: user.role,
+        status: user.isActive ? 'active' : 'inactive',
+        joinDate: user.createdAt
+      }))
+    };
+
+    res.json({ success: true, stats });
   } catch (error) {
-    console.error('Error fetching stats:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Get admin stats error:', error);
+    res.status(500).json({ error: true, message: 'Failed to get dashboard stats' });
   }
 });
 
