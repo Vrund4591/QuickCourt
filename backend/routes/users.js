@@ -8,19 +8,50 @@ const prisma = new PrismaClient();
 // Get user profile
 router.get('/profile', auth, async (req, res) => {
   try {
+    console.log('Profile request - User ID from auth:', req.user?.userId);
+    
+    if (!req.user || !req.user.userId) {
+      return res.status(401).json({ error: true, message: 'Authentication required' });
+    }
+
     const user = await prisma.user.findUnique({
       where: { id: req.user.userId },
-      select: { id: true, email: true, fullName: true, role: true, avatar: true, createdAt: true }
+      select: { 
+        id: true, 
+        email: true, 
+        fullName: true, 
+        role: true, 
+        avatar: true, 
+        phone: true,
+        isVerified: true,
+        isActive: true,
+        createdAt: true 
+      }
     });
+
+    console.log('Found user:', user ? 'Yes' : 'No');
 
     if (!user) {
       return res.status(404).json({ error: true, message: 'User not found' });
     }
 
-    res.json({ success: true, user });
+    // Ensure all fields have default values if they don't exist in the schema
+    const userResponse = {
+      id: user.id,
+      email: user.email,
+      fullName: user.fullName,
+      role: user.role,
+      avatar: user.avatar || null,
+      phone: user.phone || null,
+      isVerified: user.isVerified !== undefined ? user.isVerified : true,
+      isActive: user.isActive !== undefined ? user.isActive : true,
+      createdAt: user.createdAt
+    };
+
+    res.json({ success: true, user: userResponse });
   } catch (error) {
     console.error('Get profile error:', error);
-    res.status(500).json({ error: true, message: 'Failed to get profile' });
+    res.status(500).json({ error: true, message: 'Failed to get profile', details: error.message });
   }
 });
 

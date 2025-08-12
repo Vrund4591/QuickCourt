@@ -33,7 +33,10 @@ const auth = async (req, res, next) => {
         return res.status(401).json({ message: 'Account is inactive.' });
       }
 
-      req.user = user;
+      req.user = {
+        userId: user.id,
+        ...user
+      };
       next();
     } catch (dbError) {
       console.error('Database error in auth middleware:', dbError);
