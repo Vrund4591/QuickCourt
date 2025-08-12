@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import api from '../../utils/api'
@@ -18,30 +18,114 @@ const Venues = () => {
     page: parseInt(searchParams.get('page')) || 1
   })
   const [showFilters, setShowFilters] = useState(false)
+  const [searchTimeout, setSearchTimeout] = useState(null)
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['venues', filters],
+  const { data: allData, isLoading } = useQuery({
+    queryKey: ['allVenues'],
     queryFn: async () => {
-      const params = new URLSearchParams()
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value) params.append(key, value)
-      })
-      
-      const response = await api.get(`/facilities?${params.toString()}`)
+      const response = await api.get('/facilities')
       return response.data
-    }
+    },
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   })
+
+  // Memoized filtered facilities based on current filters
+  const filteredData = useMemo(() => {
+    if (!allData?.facilities) return { facilities: [], pagination: {} }
+    
+    let filtered = [...allData.facilities]
+    
+    // Search filter
+    if (filters.search) {
+      const searchTerm = filters.search.toLowerCase()
+      filtered = filtered.filter(facility => 
+        facility.name.toLowerCase().includes(searchTerm) ||
+        facility.address.toLowerCase().includes(searchTerm) ||
+        facility.venueType.toLowerCase().includes(searchTerm) ||
+        facility.courts?.some(court => 
+          court.sportType.toLowerCase().includes(searchTerm)
+        )
+      )
+    }
+    
+    // Sport type filter
+    if (filters.sportType) {
+      filtered = filtered.filter(facility =>
+        facility.courts?.some(court => court.sportType === filters.sportType)
+      )
+    }
+    
+    // Venue type filter
+    if (filters.venueType) {
+      filtered = filtered.filter(facility => 
+        facility.venueType === filters.venueType
+      )
+    }
+    
+    // Price range filter
+    if (filters.priceRange) {
+      const [min, max] = filters.priceRange === '2000+' 
+        ? [2000, Infinity] 
+        : filters.priceRange.split('-').map(Number)
+      
+      filtered = filtered.filter(facility => {
+        const minPrice = facility.courts && facility.courts.length > 0
+          ? Math.min(...facility.courts.map(court => court.pricePerHour))
+          : 0
+        return minPrice >= min && (max === Infinity || minPrice <= max)
+      })
+    }
+    
+    // Rating filter
+    if (filters.rating) {
+      const minRating = parseFloat(filters.rating)
+      filtered = filtered.filter(facility => {
+        if (!facility.reviews || facility.reviews.length === 0) return false
+        const avgRating = facility.reviews.reduce((sum, review) => sum + review.rating, 0) / facility.reviews.length
+        return avgRating >= minRating
+      })
+    }
+    
+    // Pagination
+    const page = filters.page || 1
+    const limit = 9 // Items per page
+    const totalCount = filtered.length
+    const totalPages = Math.ceil(totalCount / limit)
+    const startIndex = (page - 1) * limit
+    const endIndex = startIndex + limit
+    const paginatedFacilities = filtered.slice(startIndex, endIndex)
+    
+    return {
+      facilities: paginatedFacilities,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalCount,
+        hasNext: page < totalPages,
+        hasPrev: page > 1
+      }
+    }
+  }, [allData?.facilities, filters])
 
   useEffect(() => {
     // Update URL params when filters change
     const params = new URLSearchParams()
     Object.entries(filters).forEach(([key, value]) => {
-      if (value && value !== '' && value !== 1) {
+      if (value && value !== '' && !(key === 'page' && value === 1)) {
         params.append(key, value)
       }
     })
     setSearchParams(params)
   }, [filters, setSearchParams])
+
+  // Cleanup search timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeout) {
+        clearTimeout(searchTimeout)
+      }
+    }
+  }, [searchTimeout])
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({
@@ -62,11 +146,21 @@ const Venues = () => {
     // Update the search filter immediately for UI responsiveness
     setFilters(prev => ({ ...prev, search: searchValue }))
     
+    // Clear existing timeout
+    if (searchTimeout) {
+      clearTimeout(searchTimeout)
+    }
+    
     // Debounce the API call to avoid too many requests
-    clearTimeout(window.searchTimeout)
-    window.searchTimeout = setTimeout(() => {
-      handleFilterChange('search', searchValue.trim())
+    const newTimeout = setTimeout(() => {
+      setFilters(prev => ({
+        ...prev,
+        search: searchValue.trim(),
+        page: 1 // Reset to first page when search changes
+      }))
     }, 500)
+    
+    setSearchTimeout(newTimeout)
   }
 
   const clearFilters = () => {
@@ -92,7 +186,7 @@ const Venues = () => {
 
   if (isLoading) return <LoadingSpinner />
 
-  const { facilities = [], pagination = {} } = data || {}
+  const { facilities = [], pagination = {} } = filteredData || {}
 
   return (
     <div className="bg-gray-50 min-h-screen">
@@ -132,7 +226,7 @@ const Venues = () => {
               <span>Filters</span>
             </button>
             
-            {Object.values(filters).some(value => value && value !== 1) && (
+            {Object.entries(filters).some(([key, value]) => value && value !== '' && !(key === 'page' && value === 1)) && (
               <button
                 onClick={clearFilters}
                 className="text-blue-600 hover:text-blue-800 font-medium"
