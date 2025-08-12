@@ -295,7 +295,6 @@ router.get('/profile', auth, async (req, res) => {
         fullName: true,
         email: true,
         phone: true,
-        address: true,
         role: true,
         createdAt: true
       }

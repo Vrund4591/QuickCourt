@@ -63,6 +63,40 @@ router.get('/my-facilities', auth, async (req, res) => {
   }
 });
 
+// Get owner's facilities (alternative endpoint)
+router.get('/owner', auth, async (req, res) => {
+  try {
+    if (req.user.role !== 'FACILITY_OWNER') {
+      return res.status(403).json({ error: true, message: 'Only facility owners can access this' });
+    }
+
+    const facilities = await prisma.facility.findMany({
+      where: { ownerId: req.user.userId },
+      include: {
+        courts: {
+          select: {
+            id: true,
+            name: true,
+            sportType: true,
+            pricePerHour: true
+          }
+        },
+        _count: {
+          select: {
+            bookings: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    res.json({ success: true, facilities });
+  } catch (error) {
+    console.error('Get owner facilities error:', error);
+    res.status(500).json({ error: true, message: 'Failed to get facilities' });
+  }
+});
+
 // Get facility by ID
 router.get('/:id', async (req, res) => {
   try {
@@ -107,7 +141,7 @@ router.post('/', auth, async (req, res) => {
     const facility = await prisma.facility.create({
       data: {
         name,
-        // address,
+        address,
         phone,
         email,
         description,
