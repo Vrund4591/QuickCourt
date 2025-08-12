@@ -68,7 +68,7 @@ const Navbar = () => {
               <div className="h-8 w-8 bg-[#714B67] rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-lg">Q</span>
               </div>
-              <span className="text-xl font-bold text-gray-900 caveat">QuickCourt</span>
+              <span className="text-4xl font-bold text-gray-900 caveat">QuickCourt</span>
             </Link>
           </div>
 

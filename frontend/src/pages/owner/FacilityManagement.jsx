@@ -32,6 +32,7 @@ const FacilityManagement = () => {
 
   const createFacilityMutation = useMutation({
     mutationFn: async (facilityData) => {
+      console.log('Sending facility data:', facilityData)
       const response = await api.post('/facilities', facilityData)
       return response.data
     },
@@ -45,23 +46,41 @@ const FacilityManagement = () => {
         address: '',
         location: '',
         venueType: 'INDOOR',
-        amenities: []
+        amenities: [],
+        images: []
       })
     },
     onError: (error) => {
-      toast.error(error.response?.data?.message || 'Failed to create facility')
+      console.error('Facility creation error:', error)
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to create facility'
+      toast.error(errorMessage)
     }
   })
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     
-    if (!formData.name.trim() || !formData.description.trim() || !formData.address.trim()) {
+    if (!formData.name.trim() || !formData.description.trim() || !formData.address.trim() || !formData.location.trim()) {
       toast.error('Please fill in all required fields')
       return
     }
 
-    createFacilityMutation.mutate(formData)
+    // Create a clean payload without undefined or null fields
+    const payload = {
+      name: formData.name.trim(),
+      description: formData.description.trim(),
+      address: formData.address.trim(),
+      location: formData.location.trim(),
+      venueType: formData.venueType,
+      amenities: formData.amenities || []
+    }
+
+    // Only include images if they exist
+    if (formData.images && formData.images.length > 0) {
+      payload.images = formData.images
+    }
+
+    createFacilityMutation.mutate(payload)
   }
 
   const handleAmenityChange = (amenity) => {
@@ -74,7 +93,7 @@ const FacilityManagement = () => {
   }
 
   const handleImagesChange = (newImages) => {
-    setFormData(prev => ({ ...prev, images: newImages }))
+    setFormData(prev => ({ ...prev, images: newImages || [] }))
   }
 
   const getStatusColor = (status) => {
@@ -179,6 +198,20 @@ const FacilityManagement = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
+                Location *
+              </label>
+              <input
+                type="text"
+                required
+                value={formData.location}
+                onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter city or location"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Description *
               </label>
               <textarea
@@ -193,7 +226,7 @@ const FacilityManagement = () => {
 
             {/* Image Upload Section */}
             <ImageUpload
-              images={formData.images}
+              images={formData.images || []}
               onImagesChange={handleImagesChange}
               multiple={true}
               maxImages={10}

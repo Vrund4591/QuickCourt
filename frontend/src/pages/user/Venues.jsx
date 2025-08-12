@@ -53,7 +53,20 @@ const Venues = () => {
 
   const handleSearch = (e) => {
     e.preventDefault()
-    handleFilterChange('search', e.target.search.value)
+    const searchValue = e.target.search.value.trim()
+    handleFilterChange('search', searchValue)
+  }
+
+  const handleSearchInputChange = (e) => {
+    const searchValue = e.target.value
+    // Update the search filter immediately for UI responsiveness
+    setFilters(prev => ({ ...prev, search: searchValue }))
+    
+    // Debounce the API call to avoid too many requests
+    clearTimeout(window.searchTimeout)
+    window.searchTimeout = setTimeout(() => {
+      handleFilterChange('search', searchValue.trim())
+    }, 500)
   }
 
   const clearFilters = () => {
@@ -96,7 +109,8 @@ const Venues = () => {
                 name="search"
                 type="text"
                 placeholder="Search venues by name, location, or sport..."
-                defaultValue={filters.search}
+                value={filters.search}
+                onChange={handleSearchInputChange}
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <button

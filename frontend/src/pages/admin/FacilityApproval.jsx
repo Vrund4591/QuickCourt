@@ -7,17 +7,95 @@ import toast from 'react-hot-toast'
 const FacilityApproval = () => {
   const queryClient = useQueryClient()
 
-  const { data: facilities, isLoading } = useQuery({
+  const { data: facilities, isLoading, error } = useQuery({
     queryKey: ['pending-facilities'],
     queryFn: async () => {
-      const response = await api.get('/admin/facilities/pending')
-      return response.data.facilities
-    }
+      try {
+        console.log('Fetching facilities...')
+        
+        // Try the most common endpoints first
+        let response
+        
+        try {
+          response = await api.get('/facilities')
+          console.log('Got all facilities, will filter for pending')
+        } catch {
+          try {
+            response = await api.get('/admin/facilities')
+            console.log('Got facilities from admin endpoint')
+          } catch {
+            throw new Error('No facility endpoints available')
+          }
+        }
+        
+        // Handle different response structures
+        let facilitiesData = response.data.facilities || response.data.data || response.data || []
+        
+        // Ensure we have an array
+        if (!Array.isArray(facilitiesData)) {
+          facilitiesData = []
+        }
+        
+        // Filter for pending facilities
+        const pendingFacilities = facilitiesData.filter(facility => {
+          const status = facility.status || facility.approvalStatus
+          return !status || status === 'PENDING' || status === 'pending'
+        })
+        
+        console.log('Pending facilities found:', pendingFacilities)
+        return pendingFacilities
+        
+      } catch (error) {
+        console.error('Error fetching facilities:', error)
+        throw error
+      }
+    },
+    retry: 2,
+    retryDelay: 1000
   })
 
   const approveFacilityMutation = useMutation({
     mutationFn: async ({ id, status }) => {
-      const response = await api.put(`/admin/facilities/${id}/status`, { status })
+      console.log(`Attempting to update facility ${id} to status ${status}`)
+      
+      // Try different possible endpoints for updating facility status
+      const possibleEndpoints = [
+        `/facilities/${id}`,
+        `/admin/facilities/${id}`,
+        `/facilities/${id}/status`,
+        `/admin/facilities/${id}/status`
+      ]
+      
+      let response
+      let lastError
+      
+      for (const endpoint of possibleEndpoints) {
+        try {
+          console.log(`Trying PUT to ${endpoint}`)
+          response = await api.put(endpoint, { status, approvalStatus: status })
+          console.log(`Success updating facility with endpoint: ${endpoint}`)
+          break
+        } catch (error) {
+          console.log(`PUT failed for ${endpoint}:`, error.response?.status)
+          
+          // If PUT failed, try PATCH
+          try {
+            console.log(`Trying PATCH to ${endpoint}`)
+            response = await api.patch(endpoint, { status, approvalStatus: status })
+            console.log(`Success with PATCH to ${endpoint}`)
+            break
+          } catch {
+            console.log(`PATCH also failed for ${endpoint}`)
+            lastError = error
+            continue
+          }
+        }
+      }
+      
+      if (!response) {
+        throw lastError || new Error('No working endpoint found for facility update')
+      }
+      
       return response.data
     },
     onSuccess: () => {
@@ -25,6 +103,7 @@ const FacilityApproval = () => {
       toast.success('Facility status updated successfully')
     },
     onError: (error) => {
+      console.error('Mutation error:', error)
       toast.error(error.response?.data?.message || 'Failed to update facility status')
     }
   })
@@ -42,6 +121,19 @@ const FacilityApproval = () => {
   }
 
   if (isLoading) return <LoadingSpinner />
+  
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center py-12">
+          <div className="text-red-500 mb-4">
+            <h2 className="text-xl font-semibold">Error Loading Facilities</h2>
+            <p>Failed to load pending facility requests. Please try again.</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">

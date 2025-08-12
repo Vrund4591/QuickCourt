@@ -86,10 +86,14 @@ const OTPVerification = () => {
   return (
     <div className="min-h-screen flex">
       {/* Left side - Image */}
-      <div className="flex-1 bg-gray-100 flex items-center justify-center">
+      <div className="flex-1 bg-white flex items-center justify-center">
         <div className="text-center">
-          <div className="w-48 h-48 bg-gray-300 rounded-lg flex items-center justify-center mx-auto">
-            <span className="text-gray-500 text-lg font-medium">IMAGE</span>
+          <div className="w-screen max-w-4xl">
+            <img 
+              src="/DancingDoodle.svg" 
+              alt="Email Verification Illustration" 
+              className="w-full h-auto"
+            />
           </div>
         </div>
       </div>
@@ -163,3 +167,4 @@ const OTPVerification = () => {
 }
 
 export default OTPVerification
+             

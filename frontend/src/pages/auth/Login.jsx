@@ -35,17 +35,21 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex">
-      {/* Left side - Image */}
-      <div className="flex-1 bg-gray-100 flex items-center justify-center">
+     <div className="flex-1 bg-white flex items-center justify-center">
         <div className="text-center">
-          <div className="w-48 h-48 bg-gray-300 rounded-lg flex items-center justify-center mx-auto">
-            <span className="text-gray-500 text-lg font-medium">IMAGE</span>
+          <div className="w-screen max-w-4xl">
+            <img 
+              src="/SitReadingDoodle.svg" 
+              alt="Email Verification Illustration" 
+              className="w-full h-auto"
+            />
           </div>
         </div>
       </div>
 
       {/* Right side - Login Form */}
-      <div className="flex-1 bg-white flex items-center justify-center px-8">
+      <div className="flex-1 bg-white relative flex items-center justify-center px-8">
+        
         <div className="max-w-md w-full space-y-8">
           <div className="text-center">
             <h1 className="text-2xl font-bold text-gray-900 mb-2">QUICKCOURT</h1>

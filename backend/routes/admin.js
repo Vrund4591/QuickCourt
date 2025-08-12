@@ -449,4 +449,304 @@ router.patch('/users/:id/reset-password', auth, admin, async (req, res) => {
   }
 });
 
+// Get all pending facilities (Admin only)
+router.get('/facilities/pending', auth, admin, async (req, res) => {
+  try {
+    const facilities = await prisma.facility.findMany({
+      where: { status: 'PENDING' },
+      include: {
+        owner: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            phone: true
+          }
+        },
+        _count: {
+          select: {
+            bookings: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+    
+    res.json({ facilities });
+  } catch (error) {
+    console.error('Error fetching pending facilities:', error);
+    
+    // Handle specific database connection errors
+    if (error.code === 'P1001' || error.message.includes("Can't reach database")) {
+      return res.status(503).json({ 
+        message: 'Database temporarily unavailable. Please try again later.',
+        error: 'DATABASE_CONNECTION_ERROR'
+      });
+    }
+    
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Get all facilities (Admin only)
+router.get('/facilities', auth, admin, async (req, res) => {
+  try {
+    const facilities = await prisma.facility.findMany({
+      include: {
+        owner: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            phone: true
+          }
+        },
+        _count: {
+          select: {
+            bookings: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+    
+    res.json({ facilities });
+  } catch (error) {
+    console.error('Error fetching facilities:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Update facility status (Admin only)
+router.put('/facilities/:id/status', auth, admin, async (req, res) => {
+  try {
+    const { status } = req.body;
+    const facilityId = req.params.id;
+    
+    if (!['PENDING', 'APPROVED', 'REJECTED', 'SUSPENDED'].includes(status)) {
+      return res.status(400).json({ message: 'Invalid status' });
+    }
+
+    const facility = await prisma.facility.update({
+      where: { id: facilityId },
+      data: { 
+        status,
+        ...(status === 'APPROVED' && { isActive: true }),
+        ...(status === 'REJECTED' && { isActive: false }),
+        ...(status === 'SUSPENDED' && { isActive: false })
+      },
+      include: {
+        owner: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            phone: true
+          }
+        }
+      }
+    });
+
+    res.json({ 
+      message: `Facility ${status.toLowerCase()} successfully`,
+      facility 
+    });
+  } catch (error) {
+    console.error('Error updating facility status:', error);
+    if (error.code === 'P2025') {
+      return res.status(404).json({ message: 'Facility not found' });
+    }
+    if (error.code === 'P2002') {
+      return res.status(400).json({ message: 'Invalid facility data' });
+    }
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Update facility details (Admin only)
+router.put('/facilities/:id', auth, admin, async (req, res) => {
+  try {
+    const facilityId = req.params.id;
+    const { name, description, location, price, status } = req.body;
+    
+    const facility = await prisma.facility.update({
+      where: { id: facilityId },
+      data: {
+        ...(name && { name }),
+        ...(description && { description }),
+        ...(location && { location }),
+        ...(price && { price: parseFloat(price) }),
+        ...(status && { status })
+      },
+      include: {
+        owner: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            phone: true
+          }
+        }
+      }
+    });
+
+    res.json({ 
+      message: 'Facility updated successfully',
+      facility 
+    });
+  } catch (error) {
+    console.error('Error updating facility:', error);
+    if (error.code === 'P2025') {
+      return res.status(404).json({ message: 'Facility not found' });
+    }
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get facility by ID (Admin only)
+router.get('/facilities/:id', auth, admin, async (req, res) => {
+  try {
+    const facilityId = req.params.id;
+    
+    const facility = await prisma.facility.findUnique({
+      where: { id: facilityId },
+      include: {
+        owner: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            phone: true
+          }
+        },
+        bookings: {
+          select: {
+            id: true,
+            status: true,
+            createdAt: true,
+            user: {
+              select: {
+                fullName: true,
+                email: true
+              }
+            }
+          },
+          orderBy: {
+            createdAt: 'desc'
+          },
+          take: 10
+        },
+        _count: {
+          select: {
+            bookings: true,
+            reviews: true
+          }
+        }
+      }
+    });
+    
+    if (!facility) {
+      return res.status(404).json({ message: 'Facility not found' });
+    }
+
+    res.json({ facility });
+  } catch (error) {
+    console.error('Error fetching facility:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Delete facility (Admin only)
+router.delete('/facilities/:id', auth, admin, async (req, res) => {
+  try {
+    const facilityId = req.params.id;
+    
+    await prisma.facility.delete({
+      where: { id: facilityId }
+    });
+
+    res.json({ message: 'Facility deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting facility:', error);
+    if (error.code === 'P2025') {
+      return res.status(404).json({ message: 'Facility not found' });
+    }
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Approve facility (Admin only)
+router.patch('/facilities/:id/approve', auth, admin, async (req, res) => {
+  try {
+    const facilityId = req.params.id;
+    
+    const facility = await prisma.facility.update({
+      where: { id: facilityId },
+      data: { status: 'APPROVED' },
+      include: {
+        owner: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            phone: true
+          }
+        }
+      }
+    });
+
+    res.json({ 
+      message: 'Facility approved successfully',
+      facility 
+    });
+  } catch (error) {
+    console.error('Error approving facility:', error);
+    if (error.code === 'P2025') {
+      return res.status(404).json({ message: 'Facility not found' });
+    }
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Reject facility (Admin only)
+router.patch('/facilities/:id/reject', auth, admin, async (req, res) => {
+  try {
+    const facilityId = req.params.id;
+    const { reason } = req.body;
+    
+    const facility = await prisma.facility.update({
+      where: { id: facilityId },
+      data: { 
+        status: 'REJECTED',
+        rejectionReason: reason || null
+      },
+      include: {
+        owner: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            phone: true
+          }
+        }
+      }
+    });
+
+    res.json({ 
+      message: 'Facility rejected successfully',
+      facility 
+    });
+  } catch (error) {
+    console.error('Error rejecting facility:', error);
+    if (error.code === 'P2025') {
+      return res.status(404).json({ message: 'Facility not found' });
+    }
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 module.exports = router;

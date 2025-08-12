@@ -55,18 +55,21 @@ const Signup = () => {
   }
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left side - Image */}
-      <div className="flex-1 bg-gray-100 flex items-center justify-center">
+    <div className="min-h-screen flex flex-col md:flex-row">
+      {/* Left side - Gradient + SVG + Text */}
+     <div className="flex-1 bg-white flex items-center justify-center">
         <div className="text-center">
-          <div className="w-48 h-48 bg-gray-300 rounded-lg flex items-center justify-center mx-auto">
-            <span className="text-gray-500 text-lg font-medium">IMAGE</span>
+          <div className="w-screen max-w-4xl">
+            <img 
+              src="/MessyDoodle.svg" 
+              alt="Email Verification Illustration" 
+              className="w-full h-auto"
+            />
           </div>
         </div>
       </div>
-
       {/* Right side - Signup Form */}
-      <div className="flex-1 bg-white flex items-center justify-center px-8">
+      <div className="flex-1 bg-white flex items-center justify-center px-8 py-12">
         <div className="max-w-md w-full space-y-6">
           <div className="text-center">
             <h1 className="text-2xl font-bold text-gray-900 mb-2">QUICKCOURT</h1>
@@ -119,7 +122,6 @@ const Signup = () => {
                 value={formData.fullName}
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#714B67] focus:border-[#714B67] text-gray-900"
-                placeholder=""
               />
             </div>
             
@@ -136,7 +138,6 @@ const Signup = () => {
                 value={formData.email}
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#714B67] focus:border-[#714B67] text-gray-900"
-                placeholder=""
               />
             </div>
             
@@ -153,7 +154,6 @@ const Signup = () => {
                   value={formData.password}
                   onChange={handleChange}
                   className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#714B67] focus:border-[#714B67] text-gray-900"
-                  placeholder=""
                 />
                 <button
                   type="button"
@@ -182,7 +182,6 @@ const Signup = () => {
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#714B67] focus:border-[#714B67] text-gray-900"
-                  placeholder=""
                 />
                 <button
                   type="button"

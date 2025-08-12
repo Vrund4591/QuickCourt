@@ -132,20 +132,27 @@ router.post('/', auth, async (req, res) => {
       return res.status(403).json({ error: true, message: 'Only facility owners can create facilities' });
     }
 
-    const { name, address, phone, email, description } = req.body;
+    // Extract all required fields from request body
+    const { name, description, address, location, venueType, amenities, images } = req.body;
 
-    if (!name || !address) {
-      return res.status(400).json({ error: true, message: 'Name and address are required' });
+    // Validate required fields
+    if (!name || !description || !address || !location) {
+      return res.status(400).json({
+        message: 'Missing required fields: name, description, address, and location are required'
+      });
     }
 
+    // Create facility with proper field mapping
     const facility = await prisma.facility.create({
       data: {
-        name,
-        address,
-        phone,
-        email,
-        description,
-        ownerId: req.user.userId
+        name: name.trim(),
+        description: description.trim(),
+        address: address.trim(),
+        location: location.trim(), // Make sure location is included
+        venueType: venueType || 'INDOOR',
+        amenities: amenities || [],
+        ownerId: req.user.id,
+        // ...other fields as needed
       },
       include: {
         courts: true
